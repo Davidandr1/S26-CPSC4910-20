@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% set title = "About" %}
+{% block content %}
+  <h1>About</h1>
+
+  <div class="card">
+    <h2 style="margin-top:0;">Sprint Information</h2>
+    <div><strong>Team #:</strong> 20</div>
+    <div><strong>Version # (Sprint #):</strong> 1</div>
+    <div><strong>Release Date:</strong> 2/3/2026</div>
+    <div><strong>Product Name:</strong> Good Driver Incentive Program</div>
+    <div style="margin-top:10px;">
+      <strong>Product Description:</strong><br>
+      A web application for trucking companies to reward safer, better driving. Sponsors award and remove points based on driver performance, and drivers redeem those points for items in a sponsor-managed catalog. The system tracks point activity and purchases so the service can be sold and administered at scale.
+    </div>
+    <div style="margin-top:10px;">
+      <strong>Demo Notes:</strong><br>
+      We haven't linked the database to our website for Sprint 1, so the About Information is not dynamically pulled from the database. Users are also not saved or checked. These pages only showcase that our instances are set up and that we have started work on our app.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">Current User</h2>
+    <div><strong>Name:</strong> {{ user.first_name }} {{ user.last_name }}</div>
+    <div><strong>Username:</strong> {{ user.username }}</div>
+    <div><strong>Role:</strong> {{ user.role }}</div>
+    <div><strong>Sponsor:</strong> {{ user.sponsor }}</div>
+  </div>
+{% endblock %}
