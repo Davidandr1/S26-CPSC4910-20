@@ -8,9 +8,12 @@ BEGIN
 			SET MESSAGE_TEXT = "Inventory too low for this order.";
 	END IF;
 END$$
+DELIMITER ;
 
+DELIMITER $$
 CREATE TRIGGER Inventory_Delete
 AFTER INSERT ON LINE_ITEMS FOR EACH ROW
+BEGIN
 	UPDATE INVENTORY
     SET Prod_Quantity = Prod_Quantity - NEW.Line_Quantity WHERE Item_ID = New.Item_ID;
 END$$
