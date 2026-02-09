@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% set title = "Create Account" %}
 {% block content %}
-  <h1>Create an Account</h1>
+  <h1>Create an Account (Driver)</h1>
 
   {% if error %}
     <div class="error">{{ error }}</div>
@@ -52,7 +52,12 @@
     {% endfor %}
 
     <label>Sponsor</label>
-    <input name="sponsor" type="text" value="{{ form.sponsor.data or '' }}">
+    <select name="sponsor">
+      {% for s in sponsors %}
+        <option value="{{ s }}" {% if (form.sponsor.data or '') == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+
     {% for e in form.sponsor.errors %}
       <div class="field-error">{{ e }}</div>
     {% endfor %}
