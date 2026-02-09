@@ -1,0 +1,22 @@
+DELIMITER $$
+
+CREATE TRIGGER Inventory_Check
+BEFORE INSERT ON LINE_ITEMS FOR EACH ROW
+BEGIN
+	IF (SELECT Prod_Quantity FROM INVENTORY WHERE Item_ID = NEW.Item_ID) < NEW.Line_Quantity THEN
+		SIGNAL SQLSTATE "45000"
+			SET MESSAGE_TEXT = "Inventory too low for this order.";
+	END IF;
+END$$
+DELIMITER ;
+
+DELIMITER $$
+CREATE TRIGGER Inventory_Delete
+AFTER INSERT ON LINE_ITEMS FOR EACH ROW
+BEGIN
+	UPDATE INVENTORY
+    SET Prod_Quantity = Prod_Quantity - NEW.Line_Quantity WHERE Item_ID = New.Item_ID;
+END$$
+
+DELIMITER ;
+	

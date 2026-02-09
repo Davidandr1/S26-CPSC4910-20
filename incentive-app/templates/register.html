@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% set title = "Create Account" %}
+{% block content %}
+  <h1>Create an Account</h1>
+
+  {% if error %}
+    <div class="error">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="/register" novalidate>
+
+    <label>Username</label>
+    <input name="username" type="text" value="{{ form.username.data or '' }}">
+    {% for e in form.username.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    <label>Password</label>
+    <input name="password" type="password">
+    {% for e in form.password.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    <label>First Name</label>
+    <input name="first_name" type="text" value="{{ form.first_name.data or '' }}">
+    {% for e in form.first_name.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    <label>Last Name</label>
+    <input name="last_name" type="text" value="{{ form.last_name.data or '' }}">
+    {% for e in form.last_name.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    <label>Email</label>
+    <input name="email" type="text" value="{{ form.email.data or '' }}">
+    {% for e in form.email.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    <label>Phone Number</label>
+    <input name="phone" type="text" value="{{ form.phone.data or '' }}" placeholder="e.g. 864-555-1234">
+    {% for e in form.phone.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    <label>License Number</label>
+    <input name="license_number" type="text" value="{{ form.license_number.data or '' }}">
+    {% for e in form.license_number.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    <label>Sponsor</label>
+    <input name="sponsor" type="text" value="{{ form.sponsor.data or '' }}">
+    {% for e in form.sponsor.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    <button type="submit">Create Account</button>
+  </form>
+
+  <p style="margin-top:12px;">
+    Already have an account? <a href="/">Back to login</a>
+  </p>
+{% endblock %}
