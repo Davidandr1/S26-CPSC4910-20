@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from wtforms import Form, StringField, PasswordField, SelectField, validators
 from email_validator import validate_email, EmailNotValidError
+from werkzeug.security import generate_password_hash, check_password_hash
 import re
 
 app = Flask(__name__)
@@ -148,7 +149,7 @@ def login_submit():
     password = form.password.data
 
     user = USERS.get(username)
-    if not user or user["password"] != password:
+    if not user or not check_password_hash(user["password"], password):
         return render_template("login.html", form=form, error="Invalid username or password.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
 
     session["username"] = user["username"]
@@ -174,10 +175,11 @@ def register_submit():
         return render_template("register.html", form=form, error="That username is already taken.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
 
     phone_digits = normalize_phone(form.phone.data)
-
+    hashed_pass = generate_password_hash(form.password.data)
+    
     USERS[username] = {
         "username": username,
-        "password": form.password.data,
+        "password": hashed_pass,
         "first_name": form.first_name.data.strip(),
         "last_name": form.last_name.data.strip(),
         "email": form.email.data.strip(),
