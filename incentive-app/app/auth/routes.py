@@ -22,6 +22,14 @@ def require_login_redirect():
         return redirect(url_for("auth.login_page"))
     return None
 
+def require_role(role: str):
+    r = require_login_redirect()
+    if r:
+        return r
+    if session.get("user_type") != role:
+        return "Forbidden", 403
+    return None
+
 @auth_bp.get("/")
 def login_page():
     form = LoginForm(meta={"csrf": False})
