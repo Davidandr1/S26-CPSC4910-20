@@ -59,6 +59,12 @@ def login_submit():
     session["user_type"] = row.User_Type
     session.permanent = True  # enables PERMANENT_SESSION_LIFETIME
 
+   with engine.connect() as conn:
+       if row.User_Type == "Sponsor":
+           srow = conn.execute(text("SELECT Sponsor_ID FROM SPONSOR_USER WHERE User_ID = :uid")
+                               {"uid": row.User_ID}).fetchone()
+           session["sponsor_id"] = srow.Sponsor_ID
+    
     return redirect(url_for("main.home_redirect"))
 
 @auth_bp.get("/register")
