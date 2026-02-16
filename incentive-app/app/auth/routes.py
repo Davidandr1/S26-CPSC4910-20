@@ -20,6 +20,9 @@ def is_logged_in() -> bool:
 def require_login_redirect():
     if not is_logged_in():
         return redirect(url_for("auth.login_page"))
+    if not session_valid(session.get("user_id"), session.get("session_version")
+        session.clear
+        return redirect(url_for("auth.login_page"))
     return None
 
 def require_role(role: str):
@@ -29,6 +32,15 @@ def require_role(role: str):
     if session.get("user_type") != role:
         return "Forbidden", 403
     return None
+
+def session_valid(user_id, session_version):
+    with engine.connect() as conn:
+        row = conn.execute(text("""SELECT Session_Version 
+                                FROM USERS WHERE User_ID = :uid""")
+                                ,{"uid": user_id}).fetchone()
+        if not row:
+            return False
+        return row.Session_Version == session_version
 
 @auth_bp.get("/")
 def login_page():
@@ -46,7 +58,7 @@ def login_submit():
 
     with engine.connect() as conn:
         row = conn.execute(text("""
-            SELECT User_ID, Username, Encrypted_Password, User_Type
+            SELECT User_ID, Username, Encrypted_Password, User_Type, Session_Version
             FROM USERS
             WHERE Username = :u
         """), {"u": username}).fetchone()
@@ -57,6 +69,7 @@ def login_submit():
     session["user_id"] = row.User_ID
     session["username"] = row.Username
     session["user_type"] = row.User_Type
+    session["Session_Version"] = row.Session_Version
     session.permanent = True  # enables PERMANENT_SESSION_LIFETIME
 
    with engine.connect() as conn:
@@ -225,5 +238,12 @@ def admin_create_submit():
 
 @auth_bp.get("/logout")
 def logout():
+    user_id = session.get("user_id")
+        if user_id:
+            with engine.connect() as conn:
+                conn.execute(text("""
+                                UPDATE USERS SET Session_Version = Session_Version + 1
+                                WHERE User_ID = :uid"""), {"uid": user_id})
+                conn.commit()
     session.clear()
     return redirect(url_for("auth.login_page"))
