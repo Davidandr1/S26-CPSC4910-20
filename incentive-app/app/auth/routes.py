@@ -21,7 +21,7 @@ def require_login_redirect():
     if not is_logged_in():
         return redirect(url_for("auth.login_page"))
     if not session_valid(session.get("user_id"), session.get("session_version")
-        session.clear
+        session.clear()
         return redirect(url_for("auth.login_page"))
     return None
 
