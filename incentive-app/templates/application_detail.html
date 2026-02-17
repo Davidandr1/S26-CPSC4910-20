@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{%block content %}
+<div class="containter mt-4">
+
+	<h2>Driver Application Details</h2>
+
+  <div class="card mt-3">
+    <div class="card-body">
+
+        <h4>{{ app.User_FName }} {{app.User_LName }}</h4>
+        <p><strong>Email:</strong> {{ app.User_Email }}</p>
+        <p><strong>Application Status</strong> {{app.App_Status }}</p>
+        {% if session.user_type == "Admin" %}
+          <p><strong>Sponsor ID:</strong> {{app.Sponsor_ID }}</p>
+        {% endif %}
+
+        <hr>
+        <form action="{{url_for('main.evaluate_application', driver_id=app.Driver_ID }}"
+            method="post" style="display:inline;">
+          <input type="hidden" name="decision" value="Approved">
+          <button class="btn btn-success">Approve</button>
+        </form>
+
+        <form action="{{url_for('main.evaluate_application', driver_id=app.Driver_ID }}"
+            method="post" style="display:inline;">
+          <input type="hidden" name="decision" value="Denied">
+          <button class="btn btn-danger">Deny</button>
+        </form>
+        <a href="{{url_for('main.applications_list') }}" class="btn btn-secondary ms-2">
+            Back to Applications
+        </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+    
+	
