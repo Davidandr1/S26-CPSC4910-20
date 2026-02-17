@@ -72,7 +72,7 @@ def login_submit():
     session["Session_Version"] = row.Session_Version
     session.permanent = True  # enables PERMANENT_SESSION_LIFETIME
 
-   with engine.connect() as conn:
+    with engine.connect() as conn:
        if row.User_Type == "Sponsor":
            srow = conn.execute(text("SELECT Sponsor_ID FROM SPONSOR_USER WHERE User_ID = :uid")
                                {"uid": row.User_ID}).fetchone()
