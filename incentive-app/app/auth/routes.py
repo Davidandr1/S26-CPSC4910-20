@@ -78,7 +78,7 @@ def login_submit():
                                {"uid": row.User_ID}).fetchone()
            session["sponsor_id"] = srow.Sponsor_ID
     
-    return redirect(url_for("main.home_redirect"))
+   return redirect(url_for("main.home_redirect"))
 
 @auth_bp.get("/register")
 def register_page():
