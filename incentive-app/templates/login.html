@@ -66,6 +66,21 @@
             </button>
         </form>
 
+        <form method="POST" action="{{ url_for('auth.reset_submit') }}" class="auth-form" style="margin-top: 10px;">
+            <div class="form-group">
+                <input 
+                    type="text" 
+                    name="username" 
+                    class="form-input"
+                    placeholder="Enter username for password reset"
+                    value="{{ form.username.data or '' }}"
+                >
+            </div>
+            <button type="submit" class="btn" style="background-color: #6b7280; width: 100%;">
+                <span>Send New Password</span>
+            </button>
+        </form>
+
         <div class="auth-footer">
             <p>Don't have an account? <a href="{{ url_for('auth.register_page') }}" class="auth-link">Register now</a></p>
         </div>
