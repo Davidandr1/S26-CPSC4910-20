@@ -149,3 +149,61 @@ def blank_page(name):
 
     return render_template("page.html", page_title=f"Blank Test Page: {name}",
                            nav_pages=NAV_PAGES, logged_in=is_logged_in())
+
+@main_bp.get("/applications")
+def applications_list():
+    r = require_role("Sponsor")
+    if r:
+        r2 = require_role("Admin")
+        if r2:
+            return r2
+with engine.connect() as conn:
+    if session["user_type"] == "Sponsor":
+        apps = conn.execute(text(""" SELECT d.Driver_ID, u.User_FName, u.User_LName, d.App_Status
+                                FROM DRIVERS d JOIN USERS u on u.User_ID = d.User_ID WHERE d.Sponsor_ID = :sid"""),
+                            {"sid": session["sponsor_id"]}).fetchall()
+    else:
+        apps = conn.execute(text(""" SELECT d.Driver_ID, u.User_FName, u.User_LName, d.App_Status
+                                FROM DRIVERS d JOIN USERS u on u.User_ID = d.User_ID""")).fetchall()
+return render_template("applications.html", apps=apps, nav_pages = NAV_PAGES, logged_in=is_logged_in())
+
+@main_bp.get("/applications/<int:driver_id>")
+def application_details(driver__id):
+    r = require_role("Sponsor")
+    if r:
+        r2 = require_role("Admin")
+        if r2:
+            return r2
+    with engine.connect() as conn:
+        app = conn.execute(text(""" SELECT d.Driver_ID, d.Sponsor_ID, d.App_Status, u.User_FName, u.User_LName, u.User_Email
+                                FROM DRIVERS d JOIN USERS u on u.User_ID = d.User_ID WHERE d.Driver_ID = :did"""),
+                               {"did": driver_id}).fetchone()
+    if not app:
+        return "Application not found", 404
+
+    if session["user_type"] == "Sponsor" and app.Sponsor_ID != session[sponsor_id"]
+        return "Forbidden", 403
+
+    return render_template(
+        "application_detail.html",
+        app=app, nav_pages=NAV_PAGES, logged_in=is_logged_in())
+
+@main_bp.post("/applications/<int:driver_id>/evaluate")
+def evaluate_applications(driver_id):
+    r = require_role("Sponsor")
+    if r:
+        r2 = require_role("Admin")
+        if r2:
+            return r2
+    decision = request.form.get("decision")
+
+    with engine.connect() as conn:
+        app = conn.execute(text(""" SELECT Sponsor_ID FROM DRIVERS WHERE Driver_ID = :did"""), ({"did": driver_id}).fetchone()
+        if not app:
+            return "Application not found", 404
+        if session["user_type"] == "Sponsor" and app.Sponsor_ID != session["sponsor_id"]:
+            return "Forbidden", 403
+
+        conn.execute(text("""UPDATE DRIVERS SET App_Status = :status WHERE Driver_ID = :did"""), {"status": decision, "did": driver_id})
+        conn.commit()
+    return redirect(url_for("main.applications_list))
