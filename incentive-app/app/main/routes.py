@@ -165,7 +165,7 @@ with engine.connect() as conn:
     else:
         apps = conn.execute(text(""" SELECT d.Driver_ID, u.User_FName, u.User_LName, d.App_Status
                                 FROM DRIVERS d JOIN USERS u on u.User_ID = d.User_ID""")).fetchall()
-return render_template("applications.html", apps=apps, nav_pages = NAV_PAGES, logged_in=is_logged_in())
+return render_template("applications_list.html", apps=apps, nav_pages = NAV_PAGES, logged_in=is_logged_in())
 
 @main_bp.get("/applications/<int:driver_id>")
 def application_details(driver__id):
