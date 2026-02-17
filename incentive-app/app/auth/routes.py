@@ -233,7 +233,7 @@ def admin_create_submit():
     except Exception:
         return render_template("admin_create.html", form=form, error="Database error creating admin",
                                nav_pages=NAV_PAGES, logged_in=is_logged_in()), 500
-        return redirect(url_for("main.admin_home))
+    return redirect(url_for("main.admin_home))
 
 @auth_bp.get("/sponsor/create")
 def sponsor_create_page():
