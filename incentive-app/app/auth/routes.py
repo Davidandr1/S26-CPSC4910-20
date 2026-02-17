@@ -74,7 +74,7 @@ def login_submit():
 
     with engine.connect() as conn:
        if row.User_Type == "Sponsor":
-           srow = conn.execute(text("SELECT Sponsor_ID FROM SPONSOR_USER WHERE User_ID = :uid")
+           srow = conn.execute(text("SELECT Sponsor_ID FROM SPONSOR_USER WHERE User_ID = :uid"),
                                {"uid": row.User_ID}).fetchone()
            session["sponsor_id"] = srow.Sponsor_ID
     
