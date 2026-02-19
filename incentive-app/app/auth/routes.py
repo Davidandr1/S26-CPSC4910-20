@@ -69,16 +69,17 @@ def login_submit():
     session["user_id"] = row.User_ID
     session["username"] = row.Username
     session["user_type"] = row.User_Type
-    session["Session_Version"] = row.Session_Version
+    session["session_version"] = row.Session_Version
     session.permanent = True  # enables PERMANENT_SESSION_LIFETIME
 
     with engine.connect() as conn:
-       if row.User_Type == "Sponsor":
-           srow = conn.execute(text("SELECT Sponsor_ID FROM SPONSOR_USER WHERE User_ID = :uid"),
+        if row.User_Type == "Sponsor":
+            srow = conn.execute(text("SELECT Sponsor_ID FROM SPONSOR_USER WHERE User_ID = :uid"),
                                {"uid": row.User_ID}).fetchone()
-           session["sponsor_id"] = srow.Sponsor_ID
+            if srow:
+                session["sponsor_id"] = srow.Sponsor_ID
     
-   return redirect(url_for("main.home_redirect"))
+    return redirect(url_for("main.home_redirect"))
 
 @auth_bp.get("/register")
 def register_page():
@@ -189,12 +190,12 @@ def register_submit():
 
 @auth_bp.get("/admin/create")
 def admin_create_page():
-    r = require_role("Admin"):
+    r = require_role("Admin")
     if r:
         return r
     form = RegisterForm(request.form, meta={"csrf": False})
     return render_template("adminCreate.html", form=form, error=None, 
-                            nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400  
+                            nav_pages=NAV_PAGES, logged_in=is_logged_in()) 
 
 @auth_bp.post("/admin/create")
 def admin_create_submit():
@@ -203,7 +204,7 @@ def admin_create_submit():
         return r
     form = RegisterForm(request.form, meta={"csrf": False})
     if not form.validate():
-        return render_template("admin_create.html", form=form, error=None,
+        return render_template("adminCreate.html", form=form, error=None,
                                nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
     username = form.username.data.strip()
     pw_hash = generate_password_hash(form.password.data)
@@ -214,10 +215,10 @@ def admin_create_submit():
 
     try:
         with engine.begin() as conn:
-             existing = conn.execute( text("SELECT User_ID FROM USERS WHERE Username = :u OR User_Email = :e OR User_Phone_Num = :p"),
+            existing = conn.execute( text("SELECT User_ID FROM USERS WHERE Username = :u OR User_Email = :e OR User_Phone_Num = :p"),
                 {"u": username, "e": email, "p": phone}).fetchone()
             if existing:
-                return render_template("admin_create.html", form=form,
+                return render_template("adminCreate.html", form=form,
                                        error="Username, email, or phone already exists",
                                        nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
             conn.execute(text("""INSERT INTO USERS
@@ -227,22 +228,22 @@ def admin_create_submit():
         
             new_id = conn.execute(text("SELECT LAST_INSERT_ID() AS id")).fetchone().id
         
-            conn.execute(text("INSERT INTO ADMINS (User_ID, Security_Level) VALUES (:uid, 1)")
+            conn.execute(text("INSERT INTO ADMINS (User_ID, Security_Level) VALUES (:uid, 1)"),
                          {"uid": new_id})
         
     except Exception:
-        return render_template("admin_create.html", form=form, error="Database error creating admin",
+        return render_template("adminCreate.html", form=form, error="Database error creating admin",
                                nav_pages=NAV_PAGES, logged_in=is_logged_in()), 500
-    return redirect(url_for("main.admin_home))
+    return redirect(url_for("main.admin_home"))
 
 @auth_bp.get("/sponsor/create")
 def sponsor_create_page():
-    r = require_role("Sponsor"):
+    r = require_role("Sponsor")
     if r:
         return r
     form = RegisterForm(request.form, meta={"csrf": False})
     return render_template("adminCreate.html", form=form, error=None, 
-                            nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400  
+                            nav_pages=NAV_PAGES, logged_in=is_logged_in())
 
 @auth_bp.post("/sponsor/create")
 def sponsor_create_submit():
@@ -251,7 +252,7 @@ def sponsor_create_submit():
         return r
     form = RegisterForm(request.form, meta={"csrf": False})
     if not form.validate():
-        return render_template("admin_create.html", form=form, error=None,
+        return render_template("adminCreate.html", form=form, error=None,
                                nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
     username = form.username.data.strip()
     pw_hash = generate_password_hash(form.password.data)
@@ -263,10 +264,10 @@ def sponsor_create_submit():
 
     try:
         with engine.begin() as conn:
-             existing = conn.execute( text("SELECT User_ID FROM USERS WHERE Username = :u OR User_Email = :e OR User_Phone_Num = :p"),
+            existing = conn.execute( text("SELECT User_ID FROM USERS WHERE Username = :u OR User_Email = :e OR User_Phone_Num = :p"),
                 {"u": username, "e": email, "p": phone}).fetchone()
             if existing:
-                return render_template("admin_create.html", form=form,
+                return render_template("adminCreate.html", form=form,
                                        error="Username, email, or phone already exists",
                                        nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
             conn.execute(text("""INSERT INTO USERS
@@ -276,22 +277,21 @@ def sponsor_create_submit():
         
             new_id = conn.execute(text("SELECT LAST_INSERT_ID() AS id")).fetchone().id
         
-            conn.execute(text("INSERT INTO SPONSOR_USER (User_ID, Sponsor_ID) VALUES (:uid, :sid)")
+            conn.execute(text("INSERT INTO SPONSOR_USER (User_ID, Sponsor_ID) VALUES (:uid, :sid)"),
                          {"uid": new_id, "sid": sponsor_id})
         
     except Exception:
-        return render_template("admin_create.html", form=form, error="Database error creating sponsor user",
+        return render_template("adminCreate.html", form=form, error="Database error creating sponsor user",
                                nav_pages=NAV_PAGES, logged_in=is_logged_in()), 500
-        return redirect(url_for("main.sponsor_home))
+    return redirect(url_for("main.sponsor_home"))
 
 @auth_bp.get("/logout")
 def logout():
     user_id = session.get("user_id")
-        if user_id:
-            with engine.connect() as conn:
-                conn.execute(text("""
-                                UPDATE USERS SET Session_Version = Session_Version + 1
-                                WHERE User_ID = :uid"""), {"uid": user_id})
-                conn.commit()
+    if user_id:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                            UPDATE USERS SET Session_Version = Session_Version + 1
+                            WHERE User_ID = :uid"""), {"uid": user_id})
     session.clear()
     return redirect(url_for("auth.login_page"))
