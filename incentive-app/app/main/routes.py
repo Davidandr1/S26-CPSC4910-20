@@ -6,7 +6,7 @@ main_bp = Blueprint("main", __name__)
 
 NAV_PAGES = [
     ("about", "About"),
-    ("page", "Blank Page 1", "page1"),
+    ("page", "Store"),
     ("page", "Blank Page 2", "page2"),
     ("page", "Blank Page 3", "page3"),
 ]
@@ -136,6 +136,29 @@ def admin_home():
         return r
     return render_template("page.html", page_title="Admin Home", nav_pages=NAV_PAGES, logged_in=is_logged_in())
 
+@main_bp.get("/store")
+def storefront():
+    r = require_role("Driver")   # Only drivers can shop
+    if r:
+        return r
+
+    user = fetch_current_user()
+
+    #Temporary fake data until DB is connected
+    products = []
+    categories = []
+    cart_count = 0
+
+    return render_template(
+        "storefront.html",
+        nav_pages=NAV_PAGES,
+        logged_in=is_logged_in(),
+        user=user,
+        products=products,
+        categories=categories,
+        cart_count=cart_count
+    )
+
 
 @main_bp.get("/page/<name>")
 def blank_page(name):
@@ -143,7 +166,7 @@ def blank_page(name):
     if r:
         return r
 
-    allowed = {"page1", "page2", "page3"}
+    allowed = {"page2", "page3"}
     if name not in allowed:
         return "Page not found", 404
 
