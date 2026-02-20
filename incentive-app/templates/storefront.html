@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Point Store{% endblock %}
+
+{% block content %}
+<div class="store-container">
+
+    <!-- Header Row -->
+    <div class="store-header">
+        <div>
+            <h1>Point Store</h1>
+            <p class="store-sub">Browse rewards from your sponsor</p>
+        </div>
+
+        <div class="point-balance">
+            <span>Your Balance</span>
+            <strong>{{ user.points }} pts</strong>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="store-controls">
+        <input type="text" placeholder="Search products..." class="search-input">
+
+        <select class="filter-select">
+            <option value="">All Categories</option>
+            {% for category in categories %}
+                <option value="{{ category.id }}">{{ category.name }}</option>
+            {% endfor %}
+        </select>
+
+        <select class="filter-select">
+            <option value="asc">Sort by Points (Low → High)</option>
+            <option value="desc">Sort by Points (High → Low)</option>
+        </select>
+
+        <a href="/cart" class="cart-button">
+            🛒 Cart ({{ cart_count }})
+        </a>
+    </div>
+
+    <!-- Product Grid -->
+    <div class="product-grid">
+        {% for product in products %}
+        <div class="product-card">
+
+            <img src="{{ product.image_url }}" class="product-img">
+
+            <div class="product-info">
+                <h3>{{ product.name }}</h3>
+                <p class="product-desc">{{ product.description }}</p>
+
+                <div class="product-meta">
+                    <span class="points">{{ product.point_cost }} pts</span>
+
+                    {% if product.stock > 0 %}
+                        <span class="in-stock">In Stock</span>
+                    {% else %}
+                        <span class="out-stock">Out of Stock</span>
+                    {% endif %}
+                </div>
+
+                <div class="product-actions">
+                    <a href="/product/{{ product.id }}" class="btn btn-secondary">
+                        Details
+                    </a>
+
+                    {% if product.stock > 0 and user.points >= product.point_cost %}
+                        <form method="POST" action="/cart/add/{{ product.id }}">
+                            <button class="btn btn-primary">Add to Cart</button>
+                        </form>
+                    {% else %}
+                        <button class="btn btn-disabled" disabled>
+                            Not Eligible
+                        </button>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
