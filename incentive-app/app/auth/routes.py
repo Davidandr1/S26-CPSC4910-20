@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.db import engine
 from app.auth.forms import LoginForm, RegisterForm, normalize_phone
+import secrets, string, requests, os
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -80,7 +81,63 @@ def login_submit():
                 session["sponsor_id"] = srow.Sponsor_ID
     
     return redirect(url_for("main.home_redirect"))
+@auth_bp.post("/reset")
+def reset_submit():
+    username = request.form.get('username', '').strip()
+    form = LoginForm(meta={"csrf": False})
+    
+    if not username:
+        return render_template("login.html", form=form, error="Please enter a username.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
 
+    try:
+        with engine.connect() as conn:
+            # Check if user exists
+            user = conn.execute(text("""
+                SELECT User_ID, User_Email, Username 
+                FROM USERS 
+                WHERE Username = :u
+            """), {"u": username}).fetchone()
+            
+            if not user:
+                return render_template("login.html", form=form, error="Username not found.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
+
+            # Generate temporary password
+            temp_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+            
+            # Update password
+            pw_hash = generate_password_hash(temp_password)
+            conn.execute(text("""
+                UPDATE USERS 
+                SET Encrypted_Password = :pw, Session_Version = Session_Version + 1 
+                WHERE User_ID = :uid
+            """), {"pw": pw_hash, "uid": user.User_ID})
+            conn.commit()
+
+            # Send email
+            MAILGUN_DOMAIN = os.environ.get("MAILGUN_DOMAIN")
+            MAILGUN_API = os.environ.get("MAILGUN_API")
+            
+            if not MAILGUN_DOMAIN or not MAILGUN_API:
+                return render_template("login.html", form=form, error="Email service not configured.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
+            
+            response = requests.post(
+                f"https://api.mailgun.net/v3/{MAILGUN_DOMAIN}/messages",
+                auth=("api", MAILGUN_API),
+                data={
+                    "from": f"Driver Portal <noreply@{MAILGUN_DOMAIN}>",
+                    "to": [user.User_Email],
+                    "subject": "New Password",
+                    "text": f"Hi {user.Username},\n\nYour new password is: {temp_password}\n\nLogin and change it to something memorable!\n\nThanks!"
+                }
+            )
+            
+            if response.status_code == 200:
+                return render_template("login.html", form=form, error="New password sent! Check your email.", nav_pages=NAV_PAGES, logged_in=is_logged_in())
+            else:
+                return render_template("login.html", form=form, error="Failed to send email.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
+                
+    except Exception:
+        return render_template("login.html", form=form, error="Something went wrong. Try again.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
 @auth_bp.get("/register")
 def register_page():
     form = RegisterForm(meta={"csrf": False})
