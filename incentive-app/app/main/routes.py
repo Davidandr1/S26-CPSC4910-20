@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, session
+from flask import Blueprint, render_template, request, redirect, url_for, session
 from sqlalchemy import text
 from app.db import engine
 
@@ -157,18 +157,18 @@ def applications_list():
         r2 = require_role("Admin")
         if r2:
             return r2
-with engine.connect() as conn:
-    if session["user_type"] == "Sponsor":
-        apps = conn.execute(text(""" SELECT d.Driver_ID, u.User_FName, u.User_LName, d.App_Status
-                                FROM DRIVERS d JOIN USERS u on u.User_ID = d.User_ID WHERE d.Sponsor_ID = :sid"""),
-                            {"sid": session["sponsor_id"]}).fetchall()
-    else:
-        apps = conn.execute(text(""" SELECT d.Driver_ID, u.User_FName, u.User_LName, d.App_Status
+    with engine.connect() as conn:
+        if session["user_type"] == "Sponsor":
+            apps = conn.execute(text(""" SELECT d.Driver_ID, u.User_FName, u.User_LName, d.App_Status
+                                    FROM DRIVERS d JOIN USERS u on u.User_ID = d.User_ID WHERE d.Sponsor_ID = :sid"""),
+                                {"sid": session["sponsor_id"]}).fetchall()
+        else:
+            apps = conn.execute(text(""" SELECT d.Driver_ID, u.User_FName, u.User_LName, d.App_Status
                                 FROM DRIVERS d JOIN USERS u on u.User_ID = d.User_ID""")).fetchall()
-return render_template("applications_list.html", apps=apps, nav_pages = NAV_PAGES, logged_in=is_logged_in())
+    return render_template("applications_list.html", apps=apps, nav_pages = NAV_PAGES, logged_in=is_logged_in())
 
 @main_bp.get("/applications/<int:driver_id>")
-def application_details(driver__id):
+def application_details(driver_id):
     r = require_role("Sponsor")
     if r:
         r2 = require_role("Admin")
@@ -181,7 +181,7 @@ def application_details(driver__id):
     if not app:
         return "Application not found", 404
 
-    if session["user_type"] == "Sponsor" and app.Sponsor_ID != session[sponsor_id"]
+    if session["user_type"] == "Sponsor" and app.Sponsor_ID != session["sponsor_id"]:
         return "Forbidden", 403
 
     return render_template(
@@ -198,12 +198,12 @@ def evaluate_applications(driver_id):
     decision = request.form.get("decision")
 
     with engine.connect() as conn:
-        app = conn.execute(text(""" SELECT Sponsor_ID FROM DRIVERS WHERE Driver_ID = :did"""), ({"did": driver_id}).fetchone()
+        app = conn.execute(text(""" SELECT Sponsor_ID FROM DRIVERS WHERE Driver_ID = :did"""), 
+                           {"did": driver_id}).fetchone()
         if not app:
             return "Application not found", 404
         if session["user_type"] == "Sponsor" and app.Sponsor_ID != session["sponsor_id"]:
             return "Forbidden", 403
 
         conn.execute(text("""UPDATE DRIVERS SET App_Status = :status WHERE Driver_ID = :did"""), {"status": decision, "did": driver_id})
-        conn.commit()
-    return redirect(url_for("main.applications_list))
+    return redirect(url_for("main.applications_list"))
