@@ -1,71 +1,112 @@
 {% extends "base.html" %}
 {% set title = "Create Account" %}
+
 {% block content %}
-  <h1>Create an Account (Driver)</h1>
+<div class="auth-container">
+  <div class="auth-card">
 
-  {% if error %}
-    <div class="error">{{ error }}</div>
-  {% endif %}
+    <div class="auth-header">
+      <h1 class="auth-title">Create Driver Account</h1>
+      <p class="auth-subtitle">Join the platform and start earning points</p>
+    </div>
 
-  <form method="post" action="/register" novalidate>
+    {% if error %}
+      <div class="alert alert--error">
+        {{ error }}
+      </div>
+    {% endif %}
 
-    <label>Username</label>
-    <input name="username" type="text" value="{{ form.username.data or '' }}">
-    {% for e in form.username.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+    <form method="post" action="/register" novalidate>
 
-    <label>Password</label>
-    <input name="password" type="password">
-    {% for e in form.password.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" name="username" type="text"
+               value="{{ form.username.data or '' }}">
+        {% for e in form.username.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    <label>First Name</label>
-    <input name="first_name" type="text" value="{{ form.first_name.data or '' }}">
-    {% for e in form.first_name.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" name="password" type="password">
+        {% for e in form.password.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    <label>Last Name</label>
-    <input name="last_name" type="text" value="{{ form.last_name.data or '' }}">
-    {% for e in form.last_name.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+      <div class="form-group">
+        <label class="form-label">First Name</label>
+        <input class="form-input" name="first_name" type="text"
+               value="{{ form.first_name.data or '' }}">
+        {% for e in form.first_name.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    <label>Email</label>
-    <input name="email" type="text" value="{{ form.email.data or '' }}">
-    {% for e in form.email.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+      <div class="form-group">
+        <label class="form-label">Last Name</label>
+        <input class="form-input" name="last_name" type="text"
+               value="{{ form.last_name.data or '' }}">
+        {% for e in form.last_name.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    <label>Phone Number</label>
-    <input name="phone" type="text" value="{{ form.phone.data or '' }}" placeholder="e.g. 864-555-1234">
-    {% for e in form.phone.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" name="email" type="text"
+               value="{{ form.email.data or '' }}">
+        {% for e in form.email.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    <label>License Number</label>
-    <input name="license_number" type="text" value="{{ form.license_number.data or '' }}">
-    {% for e in form.license_number.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+      <div class="form-group">
+        <label class="form-label">Phone Number</label>
+        <input class="form-input" name="phone" type="text"
+               value="{{ form.phone.data or '' }}"
+               placeholder="e.g. 864-555-1234">
+        {% for e in form.phone.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    <label>Sponsor</label>
-    <select name="sponsor">
-      {% for s in sponsors %}
-        <option value="{{ s }}" {% if (form.sponsor.data or '') == s %}selected{% endif %}>{{ s }}</option>
-      {% endfor %}
-    </select>
+      <div class="form-group">
+        <label class="form-label">License Number</label>
+        <input class="form-input" name="license_number" type="text"
+               value="{{ form.license_number.data or '' }}">
+        {% for e in form.license_number.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    {% for e in form.sponsor.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+      <div class="form-group">
+        <label class="form-label">Sponsor</label>
+        <select class="form-input" name="sponsor">
+          {% for s in sponsors %}
+            <option value="{{ s }}"
+              {% if (form.sponsor.data or '') == s %}selected{% endif %}>
+              {{ s }}
+            </option>
+          {% endfor %}
+        </select>
+        {% for e in form.sponsor.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    <button type="submit">Create Account</button>
-  </form>
+      <button class="btn btn--primary" type="submit" style="width:100%; margin-top: 10px;">
+        Create Account
+      </button>
 
-  <p style="margin-top:12px;">
-    Already have an account? <a href="/">Back to login</a>
-  </p>
+    </form>
+
+    <div class="auth-footer">
+      Already have an account?
+      <a href="/" class="auth-link">Back to login</a>
+    </div>
+
+  </div>
+</div>
 {% endblock %}
