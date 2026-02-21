@@ -28,7 +28,7 @@
       {% for item in nav_pages %}
         {% if item[0] == "about" %}
           <a href="/about">About</a>
-        {% if item[0] == "store" %}
+        {% elif item[0] == "store" %}
           <a href="/store">Store</a>
         {% else %}
           <a href="/page/{{ item[2] }}">{{ item[1] }}</a>
