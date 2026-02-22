@@ -71,3 +71,19 @@ class RegisterForm(Form):
             return False
 
         return True
+
+
+class ChangePasswordForm(Form):
+    current_password = PasswordField("Current Password", [
+        validators.DataRequired(message="Current password is required.")
+    ])
+
+    new_password = PasswordField("New Password", [
+        validators.DataRequired(message="New password is required."),
+        validators.Length(min=8, message="New password must be at least 8 characters.")
+    ])
+
+    confirm_password = PasswordField("Confirm New Password", [
+        validators.DataRequired(message="Please confirm the new password."),
+        validators.EqualTo('new_password', message='Passwords must match.')
+    ])

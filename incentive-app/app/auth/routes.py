@@ -3,7 +3,7 @@ from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.db import engine
-from app.auth.forms import LoginForm, RegisterForm, normalize_phone
+from app.auth.forms import LoginForm, RegisterForm, ChangePasswordForm, normalize_phone
 import secrets, string, requests, os
 
 auth_bp = Blueprint("auth", __name__)
@@ -64,7 +64,33 @@ def login_submit():
             WHERE Username = :u
         """), {"u": username}).fetchone()
 
-    if not row or not row.Encrypted_Password or not check_password_hash(row.Encrypted_Password, password):
+    if not row:
+        # If no user, check if there's a pending application with this username
+        with engine.connect() as conn:
+                app_row = conn.execute(text("""
+                    SELECT Application_ID, App_Status, App_Time
+                    FROM APPLICATIONS
+                    WHERE App_Username = :u
+                """), {"u": username}).fetchone()
+
+        if app_row:
+                submitted = app_row.App_Time
+                try:
+                    # format timestamp for display
+                    submitted = submitted.strftime("%Y-%m-%d %H:%M:%S") if submitted else None
+                except Exception:
+                    pass
+
+                return render_template("application_status.html",
+                                       username=username,
+                                       status=app_row.App_Status,
+                                       submitted=submitted,
+                                       nav_pages=NAV_PAGES,
+                                       logged_in=is_logged_in()), 200
+
+        return render_template("login.html", form=form, error="Invalid username or password.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
+
+    if not row.Encrypted_Password or not check_password_hash(row.Encrypted_Password, password):
         return render_template("login.html", form=form, error="Invalid username or password.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
 
     session["user_id"] = row.User_ID
@@ -81,6 +107,60 @@ def login_submit():
                 session["sponsor_id"] = srow.Sponsor_ID
     
     return redirect(url_for("main.home_redirect"))
+
+
+@auth_bp.post("/application/cancel")
+def cancel_application():
+    # Allow applicants to cancel their application (only pending allowed)
+    username = request.form.get("username", "").strip()
+    if not username:
+        return redirect(url_for("auth.login_page"))
+
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM APPLICATIONS WHERE App_Username = :u AND App_Status = 'Pending'"), {"u": username})
+    except Exception:
+        return render_template("page.html", page_title="Error Cancelling Application", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 500
+
+    return render_template("page.html", page_title="Application Cancelled", nav_pages=NAV_PAGES, logged_in=is_logged_in())
+
+
+@auth_bp.get("/change-password")
+def change_password_page():
+    r = require_login_redirect()
+    if r:
+        return r
+    form = ChangePasswordForm(meta={"csrf": False})
+    return render_template("change_password.html", form=form, error=None, nav_pages=NAV_PAGES, logged_in=is_logged_in())
+
+
+@auth_bp.post("/change-password")
+def change_password_submit():
+    r = require_login_redirect()
+    if r:
+        return r
+    form = ChangePasswordForm(request.form, meta={"csrf": False})
+    if not form.validate():
+        return render_template("change_password.html", form=form, error=None, nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
+
+    current = form.current_password.data
+    new_pw = form.new_password.data
+    user_id = session.get("user_id")
+
+    try:
+        with engine.begin() as conn:
+            row = conn.execute(text("SELECT Encrypted_Password FROM USERS WHERE User_ID = :uid"), {"uid": user_id}).fetchone()
+            if not row or not row.Encrypted_Password or not check_password_hash(row.Encrypted_Password, current):
+                return render_template("change_password.html", form=form, error="Current password is incorrect.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
+
+            new_hash = generate_password_hash(new_pw)
+            conn.execute(text("UPDATE USERS SET Encrypted_Password = :pw, Session_Version = Session_Version + 1 WHERE User_ID = :uid"), {"pw": new_hash, "uid": user_id})
+            new_version = conn.execute(text("SELECT Session_Version FROM USERS WHERE User_ID = :uid"), {"uid": user_id}).fetchone().Session_Version
+            session["session_version"] = new_version
+    except Exception:
+        return render_template("change_password.html", form=form, error="Database error changing password.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 500
+
+    return render_template("page.html", page_title="Password Changed", nav_pages=NAV_PAGES, logged_in=is_logged_in())
 @auth_bp.post("/reset")
 def reset_submit():
     username = request.form.get('username', '').strip()
@@ -199,39 +279,34 @@ def register_submit():
                                        sponsors=sponsor_names,
                                        nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
 
-            existing = conn.execute(
+            # Check for duplicates across existing USERS and pending/other APPLICATIONS
+            existing_user = conn.execute(
                 text("SELECT User_ID FROM USERS WHERE Username = :u OR User_Email = :e OR User_Phone_Num = :p"),
                 {"u": username, "e": email, "p": phone}
             ).fetchone()
 
-            if existing:
+            existing_app = conn.execute(
+                text("SELECT Application_ID FROM APPLICATIONS WHERE App_Username = :u OR App_Email = :e OR App_Phone_Num = :p OR License_Num = :lic"),
+                {"u": username, "e": email, "p": phone, "lic": license_num}
+            ).fetchone()
+
+            if existing_user or existing_app:
                 with engine.connect() as c2:
                     sponsors = c2.execute(text("SELECT Sponsor_Name FROM SPONSORS ORDER BY Sponsor_Name")).fetchall()
                 sponsor_names = [r.Sponsor_Name for r in sponsors]
 
                 return render_template("register.html", form=form,
-                                       error="Username, email, or phone already exists.",
+                                       error="Username, email, phone, or license already exists.",
                                        sponsors=sponsor_names,
                                        nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
 
+            # Insert into APPLICATIONS (applicants are reviewed before creating USERS/DRIVERS)
             conn.execute(text("""
-                INSERT INTO USERS
-                  (Username, Encrypted_Password, User_FName, User_LNAME, User_Email, User_Phone_Num, User_Type)
+                INSERT INTO APPLICATIONS
+                  (App_Username, Encrypted_Password, App_FName, App_LNAME, App_Email, App_Phone_Num, License_Num, App_Sponsor_ID, App_Status)
                 VALUES
-                  (:u, :pw, :fn, :ln, :em, :ph, 'Driver')
-            """), {"u": username, "pw": pw_hash, "fn": fname, "ln": lname, "em": email, "ph": phone})
-
-            new_id = conn.execute(text("SELECT LAST_INSERT_ID() AS id")).fetchone().id
-
-            conn.execute(text("""
-                INSERT INTO DRIVERS (User_ID, License_Num, User_Points, Sponsor_ID, App_Status)
-                VALUES (:uid, :lic, 0, :sid, 'Received')
-            """), {"uid": new_id, "lic": license_num, "sid": sponsor.Sponsor_ID})
-
-            session["user_id"] = new_id
-            session["username"] = username
-            session["user_type"] = "Driver"
-            session.permanent = True
+                  (:u, :pw, :fn, :ln, :em, :ph, :lic, :sid, 'Pending')
+            """), {"u": username, "pw": pw_hash, "fn": fname, "ln": lname, "em": email, "ph": phone, "lic": license_num, "sid": sponsor.Sponsor_ID})
 
     except Exception:
         with engine.connect() as c2:
@@ -243,7 +318,8 @@ def register_submit():
                                sponsors=sponsor_names,
                                nav_pages=NAV_PAGES, logged_in=is_logged_in()), 500
 
-    return redirect(url_for("main.driver_home"))
+    # Applicants are not automatically logged in; show confirmation page
+    return render_template("page.html", page_title="Application Submitted", nav_pages=NAV_PAGES, logged_in=is_logged_in())
 
 @auth_bp.get("/admin/create")
 def admin_create_page():

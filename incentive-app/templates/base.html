@@ -30,12 +30,18 @@
           <a href="/about">About</a>
         {% elif item[0] == "store" %}
           <a href="/store">Store</a>
-        {% else %}
+        {% elif item|length >= 3 %}
           <a href="/page/{{ item[2] }}">{{ item[1] }}</a>
         {% endif %}
       {% endfor %}
 
+      {# Show Store link for drivers if nav_pages doesn't include it #}
+      {% if session.user_type == 'Driver' %}
+        <a href="/store">Store</a>
+      {% endif %}
+
       <div class="spacer"></div>
+      <a href="/change-password">Change Password</a>
       <a href="/logout">Logout</a>
     {% else %}
       <div class="spacer"></div>
