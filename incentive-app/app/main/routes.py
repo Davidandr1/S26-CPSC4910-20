@@ -7,6 +7,7 @@ main_bp = Blueprint("main", __name__)
 NAV_PAGES = [
     ("about", "About"),
     ("page", "Store"),
+    ("applications_list", "Applications"),
     ("page", "Blank Page 2", "page2"),
     ("page", "Blank Page 3", "page3"),
 ]
