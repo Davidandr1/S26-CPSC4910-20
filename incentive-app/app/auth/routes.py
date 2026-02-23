@@ -10,9 +10,6 @@ auth_bp = Blueprint("auth", __name__)
 
 NAV_PAGES = [
     ("about", "About"),
-    ("page", "Blank Page 1", "page1"),
-    ("page", "Blank Page 2", "page2"),
-    ("page", "Blank Page 3", "page3"),
 ]
 
 def is_logged_in() -> bool:
