@@ -184,7 +184,7 @@ def applications_list():
     with engine.connect() as conn:
         if session["user_type"] == "Sponsor":
             apps = conn.execute(text(""" SELECT Application_ID, App_Status, App_FName, App_LName FROM APPLICATIONS
-                                     WHERE Sponsor_ID = :sid"""),
+                                     WHERE App_Sponsor_ID = :sid"""),
                                 {"sid": session["sponsor_id"]}).fetchall()
         else:
             apps = conn.execute(text(""" SELECT Application_ID, App_Status, App_FName, App_LName FROM APPLICATIONS""")).fetchall()
