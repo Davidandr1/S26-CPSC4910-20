@@ -196,7 +196,7 @@ def application_details(app_id):
         if r2:
             return r2
     with engine.connect() as conn:
-        app = conn.execute(text(""" SELECT Application_ID, App_Sponsor_ID, App_Status, App_FName, App_LNAME, App_Email, App_Phone_Num,
+        app = conn.execute(text(""" SELECT Application_ID, App_Sponsor_ID, App_Username,App_Status, App_FName, App_LNAME, App_Email, App_Phone_Num,
                                 License_Num, App_Time FROM APPLICATIONS
                                  WHERE Application_ID = :aid"""),
                                {"aid": app_id}).fetchone()
@@ -219,7 +219,7 @@ def evaluate_applications(app_id):
             return r2
     decision = request.form.get("decision")
 
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         app = conn.execute(text(""" SELECT App_Sponsor_ID FROM APPLICATIONS WHERE Application_ID = :aid"""), 
                            {"aid": app_id}).fetchone()
         if not app:
