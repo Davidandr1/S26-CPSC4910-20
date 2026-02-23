@@ -181,11 +181,11 @@ def applications_list():
             return r2
     with engine.connect() as conn:
         if session["user_type"] == "Sponsor":
-            apps = conn.execute(text(""" SELECT Application_ID, App_Status, App_FName, App_LName FROM APPLICATIONS
+            apps = conn.execute(text(""" SELECT Application_ID, App_Status, App_FName, App_LNAME FROM APPLICATIONS
                                      WHERE App_Sponsor_ID = :sid"""),
                                 {"sid": session["sponsor_id"]}).fetchall()
         else:
-            apps = conn.execute(text(""" SELECT Application_ID, App_Status, App_FName, App_LName FROM APPLICATIONS""")).fetchall()
+            apps = conn.execute(text(""" SELECT Application_ID, App_Status, App_FName, App_LNAME FROM APPLICATIONS""")).fetchall()
     return render_template("applications_list.html", apps=apps, nav_pages = NAV_PAGES, logged_in=is_logged_in())
 
 @main_bp.get("/applications/<int:app_id>")
@@ -196,7 +196,8 @@ def application_details(app_id):
         if r2:
             return r2
     with engine.connect() as conn:
-        app = conn.execute(text(""" SELECT Application_ID, Sponsor_ID, App_Status, App_FName, App_LName FROM APPLICATIONS
+        app = conn.execute(text(""" SELECT Application_ID, App_Sponsor_ID, App_Status, App_FName, App_LNAME, App_Email, App_Phone_Num,
+                                License_Num, App_TimeFROM APPLICATIONS
                                  WHERE Application_ID = :aid"""),
                                {"aid": app_id}).fetchone()
     if not app:
