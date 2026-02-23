@@ -8,6 +8,8 @@ NAV_PAGES = [
     ("about", "About"),
     ("store", "Store"),
     ("applications_list", "Applications"),
+    ("admin_create_page", "Create New Admin"),
+    ("sponsor_create_page", "Create New Sponsor User"),
 ]
 
 def is_logged_in() -> bool:
