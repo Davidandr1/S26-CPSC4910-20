@@ -64,26 +64,21 @@ def login_submit():
     if not row:
         # If no user, check if there's a pending application with this username
         with engine.connect() as conn:
-                app_row = conn.execute(text("""
-                    SELECT Application_ID, App_Status, App_Time
-                    FROM APPLICATIONS
-                    WHERE App_Username = :u
-                """), {"u": username}).fetchone()
+            app_row = conn.execute(text("""
+                SELECT Application_ID, App_Status, App_Time
+                FROM APPLICATIONS WHERE App_Username = :u"""), 
+                {"u": username}).fetchone()
 
         if app_row:
-                submitted = app_row.App_Time
-                try:
-                    # format timestamp for display
-                    submitted = submitted.strftime("%Y-%m-%d %H:%M:%S") if submitted else None
-                except Exception:
-                    pass
+            submitted = app_row.App_Time
+            try:
+                # format timestamp for display
+                submitted = submitted.strftime("%Y-%m-%d %H:%M:%S") if submitted else None
+            except Exception:
+                pass
 
-                return render_template("application_status.html",
-                                       username=username,
-                                       status=app_row.App_Status,
-                                       submitted=submitted,
-                                       nav_pages=NAV_PAGES,
-                                       logged_in=is_logged_in()), 200
+            return render_template("application_status.html",username=username, status=app_row.App_Status,submitted=submitted,
+                                    nav_pages=NAV_PAGES,logged_in=is_logged_in()), 200
 
         return render_template("login.html", form=form, error="Invalid username or password.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
 
