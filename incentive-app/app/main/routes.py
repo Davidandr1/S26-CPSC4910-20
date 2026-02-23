@@ -224,7 +224,7 @@ def evaluate_applications(app_id):
                            {"aid": app_id}).fetchone()
         if not app:
             return "Application not found", 404
-        if session["user_type"] == "Sponsor" and app.Sponsor_ID != session["sponsor_id"]:
+        if session["user_type"] == "Sponsor" and app.App_Sponsor_ID != session["sponsor_id"]:
             return "Forbidden", 403
 
         conn.execute(text("""UPDATE APPLICATIONS SET App_Status = :status WHERE Application_ID = :aid"""), {"status": decision, "aid": app_id})
