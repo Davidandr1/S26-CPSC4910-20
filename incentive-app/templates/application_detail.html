@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{%block content %}
+{% block content %}
 <div class="containter mt-4">
 
 	<h2>Driver Application Details</h2>
@@ -9,20 +9,23 @@
     <div class="card-body">
 
         <h4>{{ app.App_FName }} {{app.App_LName }}</h4>
+        <p><strong>Username</strong>{{ app.App_Username }}</p>
         <p><strong>Email:</strong> {{ app.App_Email }}</p>
+        <p><strong>Phone Number:</strong> {{ app.App_Phone_Num }}</p>
+        <p><strong>License Number:</strong> {{ app.License_Num }}</p>
         <p><strong>Application Status</strong> {{app.App_Status }}</p>
         {% if session.user_type == "Admin" %}
-          <p><strong>Sponsor ID:</strong> {{app.Sponsor_ID }}</p>
+          <p><strong>Sponsor ID:</strong> {{app.App_Sponsor_ID }}</p>
         {% endif %}
 
         <hr>
-        <form action="{{url_for('main.evaluate_application', app_id=app.Application_ID) }}"
+        <form action="{{url_for('main.evaluate_applications', app_id=app.Application_ID) }}"
             method="post" style="display:inline;">
           <input type="hidden" name="decision" value="Approved">
           <button class="btn btn-success">Approve</button>
         </form>
 
-        <form action="{{url_for('main.evaluate_application', app_id=app.Application_ID) }}"
+        <form action="{{url_for('main.evaluate_applications', app_id=app.Application_ID) }}"
             method="post" style="display:inline;">
           <input type="hidden" name="decision" value="Denied">
           <button class="btn btn-danger">Deny</button>
