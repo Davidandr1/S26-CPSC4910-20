@@ -197,13 +197,13 @@ def application_details(app_id):
             return r2
     with engine.connect() as conn:
         app = conn.execute(text(""" SELECT Application_ID, App_Sponsor_ID, App_Status, App_FName, App_LNAME, App_Email, App_Phone_Num,
-                                License_Num, App_TimeFROM APPLICATIONS
+                                License_Num, App_Time FROM APPLICATIONS
                                  WHERE Application_ID = :aid"""),
                                {"aid": app_id}).fetchone()
     if not app:
         return "Application not found", 404
 
-    if session["user_type"] == "Sponsor" and app.Sponsor_ID != session["sponsor_id"]:
+    if session["user_type"] == "Sponsor" and app.App_Sponsor_ID != session["sponsor_id"]:
         return "Forbidden", 403
 
     return render_template(
