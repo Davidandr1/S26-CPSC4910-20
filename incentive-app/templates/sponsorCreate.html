@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% set title = "Create New Sponsor User Account" %}
+{% block content %}
+  <h1>Create a Sponsor User Account</h1>
+
+  {% if error %}
+    <div class="error">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="/sponsor/create" novalidate>
+
+    <label>Username</label>
+    <input name="username" type="text" value="{{ form.username.data or '' }}">
+    {% for e in form.username.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    <label>Password</label>
+    <input name="password" type="password">
+    {% for e in form.password.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    <label>First Name</label>
+    <input name="first_name" type="text" value="{{ form.first_name.data or '' }}">
+    {% for e in form.first_name.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    <label>Last Name</label>
+    <input name="last_name" type="text" value="{{ form.last_name.data or '' }}">
+    {% for e in form.last_name.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    <label>Email</label>
+    <input name="email" type="text" value="{{ form.email.data or '' }}">
+    {% for e in form.email.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    <label>Phone Number</label>
+    <input name="phone" type="text" value="{{ form.phone.data or '' }}" placeholder="e.g. 864-555-1234">
+    {% for e in form.phone.errors %}
+      <div class="field-error">{{ e }}</div>
+    {% endfor %}
+
+    </select>
+
+    <button type="submit">Create Account</button>
+  </form>
+
+  <p style="margin-top:12px;">
+  <a href="/">Back to Home</a>
+  </p>
+{% endblock %}
