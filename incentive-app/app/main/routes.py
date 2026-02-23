@@ -8,8 +8,6 @@ NAV_PAGES = [
     ("about", "About"),
     ("store", "Store"),
     ("applications_list", "Applications"),
-    ("page", "Blank Page 2", "page2"),
-    ("page", "Blank Page 3", "page3"),
 ]
 
 def is_logged_in() -> bool:
