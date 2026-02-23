@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{%block content %
+{%block content %}
 <div class="containter mt-4">
 
 	<h2>Driver Applications</h2>
@@ -20,7 +20,7 @@
 		<table class="table table-striped mt-3">
 			<thead>
 				<tr>
-					<th>Driver ID</th>
+					<th>Application ID</th>
 					<th>First Name</th>
 					<th>Last Name</th>
 					<th>Status</th>
@@ -30,12 +30,12 @@
 			<tbody>
 				{% for a in apps %}
 				<tr>
-					<td>{{ a.Driver_ID }}</td>
-					<td>{{ a.User_FName }}</td>
-					<td>{{ a.User_LName }}</td>
+					<td>{{ a.Application_ID }}</td>
+					<td>{{ a.App_FName }}</td>
+					<td>{{ a.App_LName }}</td>
 					<td>{{ a.App_Status }}</td>
 					<td>
-						<a href="{{ url_for('main.application_detail', driver_id=a.Driver_ID) }}"
+						<a href="{{ url_for('main.application_details', app_id=a.Application_ID) }}"
 						   class="btn btn-primary btn-sm">
 						   View
 						</a> 
