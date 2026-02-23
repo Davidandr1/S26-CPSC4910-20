@@ -9,6 +9,18 @@
 
   <form method="post" action="/sponsor/create" novalidate>
 
+    {% if sponsorList|length > 0 %}
+
+    <label>Sponsor</label>
+    <select name="sponsor_id">
+      {% for sponsor in sponsorList %}
+        <option value="{{ sponsor.Sponsor_ID }}">{{ sponsor.Sponsor_Name }}</option>
+      {% endfor %}
+    </select>
+    {% else %}
+      <div class="error">No sponsors found. Please create a sponsor before creating a sponsor user.</div>
+    {% endif %}
+    
     <label>Username</label>
     <input name="username" type="text" value="{{ form.username.data or '' }}">
     {% for e in form.username.errors %}
