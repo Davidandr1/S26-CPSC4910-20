@@ -220,7 +220,7 @@ def evaluate_applications(app_id):
     decision = request.form.get("decision")
 
     with engine.connect() as conn:
-        app = conn.execute(text(""" SELECT Sponsor_ID FROM APPLICATIONS WHERE Application_ID = :aid"""), 
+        app = conn.execute(text(""" SELECT App_Sponsor_ID FROM APPLICATIONS WHERE Application_ID = :aid"""), 
                            {"aid": app_id}).fetchone()
         if not app:
             return "Application not found", 404
