@@ -386,7 +386,11 @@ def sponsor_create_submit():
         
     form = RegisterForm(request.form, meta={"csrf": False})
     if not form.validate():
-        return render_template("sponsorCreate.html", form=form, error=None,
+        sponsorList = []
+        with engine.begin() as conn:
+            sponsorList = conn.execute(text("SELECT Sponsor_ID, Sponsor_Name FROM SPONSORS")).fetchall()
+
+        return render_template("sponsorCreate.html", form=form, sponsorList=sponsorList, error=None,
                                nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
     username = form.username.data.strip()
     pw_hash = generate_password_hash(form.password.data)
@@ -404,7 +408,11 @@ def sponsor_create_submit():
             existing = conn.execute( text("SELECT User_ID FROM USERS WHERE Username = :u OR User_Email = :e OR User_Phone_Num = :p"),
                 {"u": username, "e": email, "p": phone}).fetchone()
             if existing:
-                return render_template("sponsorCreate.html", form=form,
+                sponsorList = []
+                with engine.begin() as c2:
+                    sponsorList = c2.execute(text("SELECT Sponsor_ID, Sponsor_Name FROM SPONSORS")).fetchall()
+
+                return render_template("sponsorCreate.html", form=form, sponsorList=sponsorList,
                                        error="Username, email, or phone already exists",
                                        nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
             conn.execute(text("""INSERT INTO USERS
@@ -418,7 +426,11 @@ def sponsor_create_submit():
                          {"uid": new_id, "sid": sponsor_id})
         
     except Exception:
-        return render_template("sponsorCreate.html", form=form, error="Database error creating sponsor user",
+        sponsorList = []
+        with engine.begin() as c2:
+                sponsorList = c2.execute(text("SELECT Sponsor_ID, Sponsor_Name FROM SPONSORS")).fetchall()
+                
+        return render_template("sponsorCreate.html", form=form, sponsorList=sponsorList, error="Database error creating sponsor user",
                                nav_pages=NAV_PAGES, logged_in=is_logged_in()), 500
     return redirect(url_for("main.sponsor_home"))
 
