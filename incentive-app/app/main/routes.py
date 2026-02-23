@@ -233,3 +233,11 @@ def evaluate_applications(app_id):
         if decision == "Approved":
             conn.execute(text("""DELETE FROM APPLICATIONS WHERE Application_ID = :aid"""), {"aid": app_id})
     return redirect(url_for("main.applications_list"))
+
+@main_bp.get("/admin/create")
+def admin_create_page():
+    return redirect(url_for("auth.admin_create_page"))
+
+@main_bp.get("/sponsor/create")
+def sponsor_create_page():
+    return redirect(url_for("auth.sponsor_create_page"))
