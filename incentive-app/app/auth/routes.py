@@ -365,16 +365,25 @@ def admin_create_submit():
 def sponsor_create_page():
     r = require_role("Sponsor")
     if r:
-        return r
+        r2 = require_role("Admin")
+        if r2:
+            return r2
+    sponsorList = []
+    with engine.begin() as conn:
+        sponsorList = conn.execute(text("SELECT Sponsor_ID, Sponsor_Name FROM SPONSORS")).fetchall()
+
     form = RegisterForm(request.form, meta={"csrf": False})
-    return render_template("sponsorCreate.html", form=form, error=None, 
+    return render_template("sponsorCreate.html", form=form, sponsorList=sponsorList,error=None, 
                             nav_pages=NAV_PAGES, logged_in=is_logged_in())
 
 @auth_bp.post("/sponsor/create")
 def sponsor_create_submit():
     r = require_role("Sponsor")
     if r:
-        return r
+        r2 = require_role("Admin")
+        if r2:
+            return r2
+        
     form = RegisterForm(request.form, meta={"csrf": False})
     if not form.validate():
         return render_template("sponsorCreate.html", form=form, error=None,
@@ -385,7 +394,10 @@ def sponsor_create_submit():
     lname = form.last_name.data.strip()
     email = form.email.data.strip()
     phone = normalize_phone(form.phone.data)
-    sponsor_id = session["sponsor_id"]
+    if session.get("user_type") == "Sponsor":
+        sponsor_id = session["sponsor_id"]
+    else:
+        sponsor_id = request.form.get("sponsor_id")
 
     try:
         with engine.begin() as conn:
