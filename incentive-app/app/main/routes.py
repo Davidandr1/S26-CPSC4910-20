@@ -228,4 +228,6 @@ def evaluate_applications(app_id):
             return "Forbidden", 403
 
         conn.execute(text("""UPDATE APPLICATIONS SET App_Status = :status WHERE Application_ID = :aid"""), {"status": decision, "aid": app_id})
+        if decision == "Approved":
+            conn.execute(text("""DELETE FROM APPLICATIONS WHERE Application_ID = :aid"""), {"aid": app_id})
     return redirect(url_for("main.applications_list"))
