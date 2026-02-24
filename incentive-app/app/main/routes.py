@@ -104,13 +104,21 @@ def about_page():
         return r
 
     user = fetch_current_user()
+    try:
+        with engine.connect() as conn:
+            count = conn.execute(text("SELECT COUNT(*) AS count FROM USERS")).fetchone()
+            user_count = count.count
+            db_status = "Connected"
+    except Exception as e:
+        user_count = "N/A"
+        db_status = f"Error: {str(e)}"
     return render_template(
         "about.html",
         user=user,
-        sprint_name="Sprint 2",
-        sprint_goal="DB-backed login/register + role-based pages",
         nav_pages=NAV_PAGES,
-        logged_in=is_logged_in()
+        logged_in=is_logged_in(),
+        db_status=db_status,
+        count=count
     )
 
 
