@@ -302,15 +302,12 @@ def remove_driver():
     
     with engine.begin() as conn:
         driver = conn.execute(text("""
-            SELECT User_ID FROM DRIVERS WHERE USER_ID = :did AND Sponsor_ID = :sid
+            SELECT User_ID FROM DRIVERS WHERE USER_ID = :did AND Sponsor_ID = :sid AND Is_Active = TRUE
         """), {"did": driver_id, "sid": session["sponsor_id"]}).fetchone()
         if not driver:
             return "Driver not found or not associated with your sponsor account", 404
         
         conn.execute(text("""
-            DELETE FROM DRIVERS WHERE User_ID = :did
+            UPDATE DRIVERS SET Is_Active = FALSE WHERE User_ID = :did
         """), {"did": driver_id})
-        conn.execute(text("""
-            DELETE FROM USERS WHERE User_ID = :uid
-        """), {"uid": driver_id})
     return redirect(url_for("main.sponsor_home"))
