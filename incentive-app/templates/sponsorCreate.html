@@ -17,15 +17,21 @@
     <form method="post" action="/sponsor/create" novalidate>
  
       <div class="form-group">
-        <label class="form-label">Sponsor</label>
-        {% if sponsorList|length > 0 %}
-          <select class="form-input" name="sponsor_id">
-            {% for sponsor in sponsorList %}
-              <option value="{{ sponsor.Sponsor_ID }}">{{ sponsor.Sponsor_Name }}</option>
-            {% endfor %}
-          </select>
+        {% if session.user_type == "Admin" %}
+          <label class="form-label">Sponsor</label>
+          {% if sponsorList|length > 0 %}
+            <select class="form-input" name="sponsor_id">
+              {% for sponsor in sponsorList %}
+                <option value="{{ sponsor.Sponsor_ID }}">{{ sponsor.Sponsor_Name }}</option>
+              {% endfor %}
+            </select>
         {% else %}
-          <div class="error">No sponsors found. Please create a sponsor before creating a sponsor user.</div>
+          {% if session.user_type == "Sponsor" %}
+            <input type="text" class="form-input" value="{{ session.sponsor_name }}" disabled>
+            <input type="hidden" name="sponsor_id" value="{{ session.sponsor_id }}">
+          {% else %}
+            <div class="error">No sponsors found. Please create a sponsor before creating a sponsor user.</div>
+          {% endif %}
         {% endif %}
       </div>
 
