@@ -207,13 +207,36 @@ def applications_list():
         r2 = require_role("Admin")
         if r2:
             return r2
+        
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+    sponsor_filter = request.args.get("sponsor_id")
+
+    filters = []
+    params = {}
+
     with engine.connect() as conn:
+
+        if start_date:
+            filters.append("App_Time >= :start_date")
+            params["start_date"] = start_date
+
+        if end_date:
+            filters.append("App_Time <= :end_date")
+            params["end_date"] = end_date
+
+        if session["user_type"] == "Admin" and sponsor_filter:
+            filters.append("App_Sponsor_ID = :sponsor_id")
+            params["sponsor_id"] = sponsor_filter
+
+        filter_statement = " AND ".join(filters) if filters else "1=1"
+                
         if session["user_type"] == "Sponsor":
-            apps = conn.execute(text(""" SELECT Application_ID, App_Status, App_FName, App_LNAME FROM APPLICATIONS
-                                     WHERE App_Sponsor_ID = :sid"""),
-                                {"sid": session["sponsor_id"]}).fetchall()
+            apps = conn.execute(text(f""" SELECT Application_ID, App_Status, App_FName, App_LNAME FROM APPLICATIONS
+                                     WHERE App_Sponsor_ID = :sid AND {filter_statement} ORDER BY App_Time"""),
+                                params | {"sid": session["sponsor_id"]}).fetchall()
         else:
-            apps = conn.execute(text(""" SELECT Application_ID, App_Status, App_FName, App_LNAME FROM APPLICATIONS""")).fetchall()
+            apps = conn.execute(text(f""" SELECT Application_ID, App_Status, App_FName, App_LNAME FROM APPLICATIONS WHERE {filter_statement} ORDER BY App_Time"""), params).fetchall()
     return render_template("applications_list.html", apps=apps, nav_pages = NAV_PAGES, logged_in=is_logged_in())
 
 @main_bp.get("/applications/<int:app_id>")
