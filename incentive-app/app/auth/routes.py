@@ -432,7 +432,10 @@ def sponsor_create_submit():
                 
         return render_template("sponsorCreate.html", form=form, sponsorList=sponsorList, error="Database error creating sponsor user",
                                nav_pages=NAV_PAGES, logged_in=is_logged_in()), 500
-    return redirect(url_for("main.sponsor_home"))
+    if session.get("user_type") == "Sponsor":
+        return redirect(url_for("main.sponsor_home"))
+    else:
+        return redirect(url_for("main.admin_home"))
 
 @auth_bp.get("/logout")
 def logout():
