@@ -20,7 +20,7 @@
     {% else %}
       <div class="error">No sponsors found. Please create a sponsor before creating a sponsor user.</div>
     {% endif %}
-    
+
     <label>Username</label>
     <input name="username" type="text" value="{{ form.username.data or '' }}">
     {% for e in form.username.errors %}
@@ -57,7 +57,7 @@
       <div class="field-error">{{ e }}</div>
     {% endfor %}
 
-    </select>
+    
 
     <button type="submit">Create Account</button>
   </form>
