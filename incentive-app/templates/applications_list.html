@@ -12,6 +12,40 @@
 		{% endif %}
 	</p>
 
+	{% if error %}
+		<div class="alert alert-danger">{{ error }}</div>
+	{% endif %}
+
+<form method="get" class="card p-3 mb-3">
+	<div class="row">
+		<div class="col-md-4">
+			<label class="form-label">Start Date</label>
+			<input type="date" name="start_date" class="form-control" value="{{ request.args.get('start_date', '') }}">
+		</div>
+
+		<div class="col-md-4">
+			<label class="form-label">End Date</label>
+			<input type="date" name="end_date" class="form-control" value="{{ request.args.get('end_date', '') }}">
+		</div>
+
+		{% if session.user_type == "Admin" %}
+			<div class="col-md-4">
+				<label class="form-label">Sponsor</label>
+				<select name="sponsor_id" class="form-control">
+					<option value="">All Sponsors</option>
+					{% for sponsor in sponsors %}
+						<option value="{{ sponsor.Sponsor_ID }}" {% if request.args.get('sponsor_id') == str(sponsor.Sponsor_ID) %}selected{% endif %}>
+							{{ sponsor.Sponsor_Name }}
+						</option>
+					{% endfor %}
+				</select>
+			</div>
+		{% endif %}
+	</div>
+
+	<button type="submit" class="btn btn-primary mt-3">Filter</button>
+</form>
+
 	{% if apps|length == 0 %}
 		<div class="alert alert-info mt-3">
 			No applications found.
