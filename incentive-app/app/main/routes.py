@@ -150,7 +150,7 @@ def sponsor_home():
             SELECT d.User_ID, u.User_FName, u.User_LName, u.User_Email, u.User_Phone_Num
             FROM DRIVERS d
             JOIN USERS u ON d.User_ID = u.User_ID
-            WHERE d.Sponsor_ID = :sid
+            WHERE d.Sponsor_ID = :sid AND d.Is_Active = TRUE
         """), {"sid": sponsor_id}).fetchall()
 
     return render_template("sponsorHome.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), drivers=drivers, sponsor=sponsor)
@@ -302,7 +302,7 @@ def remove_driver():
     
     with engine.begin() as conn:
         driver = conn.execute(text("""
-            SELECT User_ID FROM DRIVERS WHERE USER_ID = :did AND Sponsor_ID = :sid AND Is_Active = TRUE
+            SELECT User_ID FROM DRIVERS WHERE USER_ID = :did AND Sponsor_ID = :sid
         """), {"did": driver_id, "sid": session["sponsor_id"]}).fetchone()
         if not driver:
             return "Driver not found or not associated with your sponsor account", 404
