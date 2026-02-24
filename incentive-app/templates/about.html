@@ -26,4 +26,9 @@
     <div><strong>Role:</strong> {{ user.role }}</div>
     <div><strong>Sponsor:</strong> {{ user.sponsor }}</div>
   </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">Database Status</h2>
+    <div><strong>Connection Status:</strong> {{ db_status }}</div>
+    <div><strong>Total Users:</strong> {{ count }}</div>
 {% endblock %}
