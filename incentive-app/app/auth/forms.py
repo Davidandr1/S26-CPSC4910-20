@@ -87,3 +87,58 @@ class ChangePasswordForm(Form):
         validators.DataRequired(message="Please confirm the new password."),
         validators.EqualTo('new_password', message='Passwords must match.')
     ])
+
+
+class AdminCreateForm(Form):
+    username = StringField("Username", [
+        validators.DataRequired(message="Username is required."),
+        validators.Length(min=3, max=100, message="Username must be 3–100 characters.")
+    ])
+
+    password = PasswordField("Password", [
+        validators.DataRequired(message="Password is required."),
+        validators.Length(min=8, message="Password must be at least 8 characters.")
+    ])
+
+    first_name = StringField("First Name", [
+        validators.DataRequired(message="First name is required.")
+    ])
+
+    last_name = StringField("Last Name", [
+        validators.DataRequired(message="Last name is required.")
+    ])
+
+    email = StringField("Email", [
+        validators.DataRequired(message="Email is required.")
+    ])
+
+    phone = StringField("Phone Number", [
+        validators.DataRequired(message="Phone number is required.")
+    ])
+
+class SponsorCreateForm(Form):
+    username = StringField("Username", [
+        validators.DataRequired(message="Username is required."),
+        validators.Length(min=3, max=100, message="Username must be 3–100 characters.")
+    ])
+
+    password = PasswordField("Password", [
+        validators.DataRequired(message="Password is required."),
+        validators.Length(min=8, message="Password must be at least 8 characters.")
+    ])
+
+    first_name = StringField("First Name", [
+        validators.DataRequired(message="First name is required.")
+    ])
+
+    last_name = StringField("Last Name", [
+        validators.DataRequired(message="Last name is required.")
+    ])
+
+    email = StringField("Email", [
+        validators.DataRequired(message="Email is required.")
+    ])
+
+    phone = StringField("Phone Number", [
+        validators.DataRequired(message="Phone number is required.")
+    ])
