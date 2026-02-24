@@ -3,7 +3,7 @@ from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.db import engine
-from app.auth.forms import LoginForm, RegisterForm, ChangePasswordForm, normalize_phone
+from app.auth.forms import LoginForm, RegisterForm, ChangePasswordForm, normalize_phone, AdminCreateForm, SponsorCreateForm
 import secrets, string, requests, os
 
 auth_bp = Blueprint("auth", __name__)
@@ -318,7 +318,7 @@ def admin_create_page():
     r = require_role("Admin")
     if r:
         return r
-    form = RegisterForm(request.form, meta={"csrf": False})
+    form = AdminCreateForm(request.form, meta={"csrf": False})
     return render_template("adminCreate.html", form=form, error=None, 
                             nav_pages=NAV_PAGES, logged_in=is_logged_in()) 
 
@@ -327,7 +327,7 @@ def admin_create_submit():
     r = require_role("Admin")
     if r:
         return r
-    form = RegisterForm(request.form, meta={"csrf": False})
+    form = AdminCreateForm(request.form, meta={"csrf": False})
     if not form.validate():
         return render_template("adminCreate.html", form=form, error=None,
                                nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
@@ -372,7 +372,7 @@ def sponsor_create_page():
     with engine.begin() as conn:
         sponsorList = conn.execute(text("SELECT Sponsor_ID, Sponsor_Name FROM SPONSORS")).fetchall()
 
-    form = RegisterForm(request.form, meta={"csrf": False})
+    form = SponsorCreateForm(request.form, meta={"csrf": False})
     return render_template("sponsorCreate.html", form=form, sponsorList=sponsorList,error=None, 
                             nav_pages=NAV_PAGES, logged_in=is_logged_in())
 
@@ -384,7 +384,7 @@ def sponsor_create_submit():
         if r2:
             return r2
         
-    form = RegisterForm(request.form, meta={"csrf": False})
+    form = SponsorCreateForm(request.form, meta={"csrf": False})
     if not form.validate():
         sponsorList = []
         with engine.begin() as conn:

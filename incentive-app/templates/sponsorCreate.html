@@ -83,7 +83,7 @@
     </form>
 
     <div class="auth-footer">
-      {% if session.get("user_role") == "Admin" %}
+      {% if session.user_type == "Admin" %}
         <a href="/admin/home" class="auth-link">Back to Admin Home</a>
       {% else %}
         <a href="/sponsor/home" class="auth-link">Back to Sponsor Home</a>
