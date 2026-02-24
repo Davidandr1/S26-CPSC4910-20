@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% set title = "Sponsor Home" %}
+{% block content %}
+<div class="card">
+    <p>Welcome back.</p>
+    <p><strong>Logged in as:</strong> {{ session.username }}</p>
+    <p><strong>User Type:</strong> {{ session.user_type }}</p>
+</div>
+
+<div class="card">
+    <p> Drivers affiliated with {{ session.sponsor_name }}</p>
+
+    {% if drivers|length == 0 %}
+        <p><em>No drivers found.</em></p>
+    {% else %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Driver Name</th>
+                    <th>Driver Email</th>
+                    <th>Driver Phone</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for driver in drivers %}
+                <tr>
+                    <td>{{ driver.User_FName }} {{ driver.User_LName }}</td>
+                    <td>{{ driver.User_Email }}</td>
+                    <td>{{ driver.User_Phone_Num }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('main.remove_driver') }}">
+                            <input type="hidden" name="driver_id" value="{{ driver.User_ID }}">
+                            <button type="submit" class="btn btn-danger btn-sm"
+                            onclick="return confirm('Are you sure you want to remove the driver?')">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+{% endblock %}

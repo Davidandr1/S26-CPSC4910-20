@@ -127,7 +127,25 @@ def sponsor_home():
     r = require_role("Sponsor")
     if r:
         return r
-    return render_template("page.html", page_title="Sponsor Home", nav_pages=NAV_PAGES, logged_in=is_logged_in())
+    
+    sponsor_id = session.get("sponsor_id")
+    if not sponsor_id:
+        return "Sponsor ID not found in session", 400
+    
+    with engine.connect() as conn:
+        sponsor = conn.execute(text("""
+            SELECT Sponsor_Name FROM SPONSORS WHERE Sponsor_ID = :sid
+        """), {"sid": sponsor_id}).fetchone()
+    drivers = []
+    with engine.connect() as conn:
+        drivers = conn.execute(text("""
+            SELECT d.Driver_ID, d.User_ID, u.User_FName, u.User_LName, u.User_Email, u.User_Phone_Num
+            FROM DRIVERS d
+            JOIN USERS u ON d.User_ID = u.User_ID
+            WHERE d.Sponsor_ID = :sid
+        """), {"sid": sponsor_id}).fetchall()
+
+    return render_template("sponsorHome.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), drivers=drivers, sponsor=sponsor)
 
 
 @main_bp.get("/admin/home")
@@ -241,3 +259,27 @@ def admin_create_page():
 @main_bp.get("/sponsor/create")
 def sponsor_create_page():
     return redirect(url_for("auth.sponsor_create_page"))
+
+@main_bp.post("/sponsor/removeDriver")
+def remove_driver():
+    r = require_role("Sponsor")
+    if r:
+        return r
+    driver_id = request.form.get("driver_id")
+    if not driver_id:
+        return "Driver ID is required", 400
+    
+    with engine.begin() as conn:
+        driver = conn.execute(text("""
+            SELECT User_ID FROM DRIVERS WHERE USER_ID = :did AND Sponsor_ID = :sid
+        """), {"did": driver_id, "sid": session["sponsor_id"]}).fetchone()
+        if not driver:
+            return "Driver not found or not associated with your sponsor account", 404
+        
+        conn.execute(text("""
+            DELETE FROM DRIVERS WHERE User_ID = :did
+        """), {"did": driver_id})
+        conn.execute(text("""
+            DELETE FROM USERS WHERE User_ID = :uid
+        """), {"uid": driver_id})
+    return redirect(url_for("main.sponsor_home"))
