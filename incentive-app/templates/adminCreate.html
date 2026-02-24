@@ -1,56 +1,77 @@
 {% extends "base.html" %}
 {% set title = "Create New Administrator Account" %}
 {% block content %}
-  <h1>Create an Admin Account</h1>
+<div class="auth-container">
+  <div class="auth-card">
 
-  {% if error %}
-    <div class="error">{{ error }}</div>
-  {% endif %}
+    <div class="auth-header">
+      <h1 class="auth-title">Create Admin Account</h1>
+    </div>
 
-  <form method="post" action="/admin/create" novalidate>
+    {% if error %}
+      <div class="alert alert--error">
+        {{ error }}
+      </div>
+    {% endif %}
 
-    <label>Username</label>
-    <input name="username" type="text" value="{{ form.username.data or '' }}">
-    {% for e in form.username.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+    <form method="post" action="/admin/create" novalidate>
 
-    <label>Password</label>
-    <input name="password" type="password">
-    {% for e in form.password.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+    
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" name="username" type="text" value="{{ form.username.data or '' }}">
+        {% for e in form.username.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    <label>First Name</label>
-    <input name="first_name" type="text" value="{{ form.first_name.data or '' }}">
-    {% for e in form.first_name.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" name="password" type="password">
+        {% for e in form.password.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    <label>Last Name</label>
-    <input name="last_name" type="text" value="{{ form.last_name.data or '' }}">
-    {% for e in form.last_name.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+      <div class="form-group">  
+        <label class="form-label">First Name</label>
+        <input class="form-input" name="first_name" type="text" value="{{ form.first_name.data or '' }}">
+        {% for e in form.first_name.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    <label>Email</label>
-    <input name="email" type="text" value="{{ form.email.data or '' }}">
-    {% for e in form.email.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+      <div class="form-group">
+        <label class="form-label">Last Name</label>
+        <input class="form-input" name="last_name" type="text" value="{{ form.last_name.data or '' }}">
+        {% for e in form.last_name.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    <label>Phone Number</label>
-    <input name="phone" type="text" value="{{ form.phone.data or '' }}" placeholder="e.g. 864-555-1234">
-    {% for e in form.phone.errors %}
-      <div class="field-error">{{ e }}</div>
-    {% endfor %}
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" name="email" type="text" value="{{ form.email.data or '' }}">
+        {% for e in form.email.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    </select>
+      <div class="form-group">
+        <label class="form-label">Phone Number</label>
+        <input class="form-input" name="phone" type="text" value="{{ form.phone.data or '' }}" placeholder="e.g. 864-555-1234">
+        {% for e in form.phone.errors %}
+          <div class="form-error">{{ e }}</div>
+        {% endfor %}
+      </div>
 
-    <button type="submit">Create Account</button>
-  </form>
+      <button type="submit">Create Account</button>
+    </form>
 
-  <p style="margin-top:12px;">
-  <a href="/">Back to Home</a>
-  </p>
+    <div class="auth-footer">
+      <a href="/admin/home" class="auth-link">Back to admin dashboard</a>
+    </div>
+
+  </div>
+</div>
 {% endblock %}
