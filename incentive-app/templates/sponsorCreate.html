@@ -25,13 +25,14 @@
                 <option value="{{ sponsor.Sponsor_ID }}">{{ sponsor.Sponsor_Name }}</option>
               {% endfor %}
             </select>
-        {% else %}
-          {% if session.user_type == "Sponsor" %}
-            <input type="text" class="form-input" value="{{ session.sponsor_name }}" disabled>
-            <input type="hidden" name="sponsor_id" value="{{ session.sponsor_id }}">
           {% else %}
             <div class="error">No sponsors found. Please create a sponsor before creating a sponsor user.</div>
           {% endif %}
+        {% elif session.user_type == "Sponsor" %}
+          <input type="text" class="form-input" value="{{ session.sponsor_name }}" disabled>
+          <input type="hidden" name="sponsor_id" value="{{ session.sponsor_id }}">
+        {% else %}
+          <div class="error">No sponsors found. Please create a sponsor before creating a sponsor user.</div>
         {% endif %}
       </div>
 

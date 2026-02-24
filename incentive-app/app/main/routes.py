@@ -147,7 +147,7 @@ def sponsor_home():
     drivers = []
     with engine.connect() as conn:
         drivers = conn.execute(text("""
-            SELECT d.Driver_ID, d.User_ID, u.User_FName, u.User_LName, u.User_Email, u.User_Phone_Num
+            SELECT, d.User_ID, u.User_FName, u.User_LName, u.User_Email, u.User_Phone_Num
             FROM DRIVERS d
             JOIN USERS u ON d.User_ID = u.User_ID
             WHERE d.Sponsor_ID = :sid
