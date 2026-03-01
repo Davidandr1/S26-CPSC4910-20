@@ -441,7 +441,7 @@ def sponsor_create_submit():
 def logout():
     user_id = session.get("user_id")
     if user_id:
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             conn.execute(text("""
                             UPDATE USERS SET Session_Version = Session_Version + 1
                             WHERE User_ID = :uid"""), {"uid": user_id})

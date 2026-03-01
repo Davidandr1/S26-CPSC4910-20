@@ -169,7 +169,7 @@ def sponsor_products():
     with engine.connect() as conn:
         products = conn.execute(text("""
             SELECT Item_ID, Item_Name, Prod_Description, Prod_Quantity, Prod_UnitPrice, Is_Available
-            FROM PRODUCTS
+            FROM INVENTORY
             WHERE Sponsor_ID = :sid
         """), {"sid": sponsor_id}).fetchall()
 
@@ -188,7 +188,7 @@ def sponsor_product_detail(item_id):
     with engine.connect() as conn:
         product = conn.execute(text("""
             SELECT Item_ID, Prod_SKU, Item_Name, Prod_Description, Prod_Quantity, Prod_UnitPrice, Is_Available
-            FROM PRODUCTS
+            FROM INVENTORY
             WHERE Item_ID = :iid AND Sponsor_ID = :sid
         """), {"iid": item_id, "sid": sponsor_id}).fetchone()
     
