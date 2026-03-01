@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% set title = "Product Details" %}
+{% block content %}
+
+<div class="card">
+    <h2>{{ product.Item_Name }}</h2>
+    <p><strong>SKU:</strong> {{ product.Prod_SKU }}</p>
+    <p><strong>Description:</strong> {{ product.Prod_Description }}</p>
+    <p><strong>Price:</strong> ${{ "%.2f"|format(product.Prod_UnitPrice) }}</p>
+    <p><strong>Quantity:</strong> {{ product.Prod_Quantity }}</p>
+    <p><strong>Availability:</strong> {{ 'Available' if product.Is_Available else 'Unavailable' }}</p>
+
+    <form method="POST" action="{{ url_for('main.sponsor_product_availability', item_id=product.Item_ID) }}" style="display:inline;">
+        <button type="submit" class="btn btn-sm {{ 'btn-success' if product.Is_Available else 'btn-secondary' }}">
+            {{ 'Make Unavailable' if product.Is_Available else 'Make Available' }}
+        </button>
+    </form>
+
+    <a class="btn btn-primary btn-sm" href="{{ url_for('main.sponsor_products') }}">Back to Products</a>
+</div>
+
+{% endblock %}

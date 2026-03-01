@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% set title = "Sponsor Inventory" %}
+{% block content %}
+
+<div class="card">
+    <p>Products offered by {{ session.sponsor_name }}</p>
+
+    {% if products|length == 0 %}
+        <p><em>No products found.</em></p>
+    {% else %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Product Price</th>
+                    <th>Quantity</th>
+                    <th>Available</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>{{ product.Item_Name }}</td>
+                    <td>${{ "%.2f"|format(product.Prod_UnitPrice) }}</td>
+                    <td>{{ product.Prod_Quantity }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('main.sponsor_product_availability', item_id=product.Item_ID) }}" style="display:inline;">
+                            <button type="submit" class="btn btn-sm {{ 'btn-success' if product.Is_Available else 'btn-secondary' }}">
+                                {{ 'Available' if product.Is_Available else 'Unavailable' }}
+                            </button>
+                        </form>
+                    </td>
+
+                    <td> 
+                        <a class="btn btn-primary btn-sm" href="/sponsor/product/{{ product.Item_ID }}">View/Edit</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
