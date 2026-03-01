@@ -36,6 +36,8 @@
           <a href="/admin/create">Create New Admin</a>
         {% elif item[0] == "sponsor_create_page" and session.user_type in ["Sponsor", "Admin"] %}
           <a href="/sponsor/create">Create New Sponsor User</a>
+        {% elif item[0] == "sponsor_products" and session.user_type == "Sponsor" %}
+          <a href="/sponsor/products">My Products</a>
         {% elif item|length >= 3 %}
           <a href="/page/{{ item[2] }}">{{ item[1] }}</a>
         {% endif %}
