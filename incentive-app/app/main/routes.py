@@ -211,7 +211,7 @@ def sponsor_product_availability(item_id):
     
     with engine.begin() as conn:
         product = conn.execute(text("""
-            SELECT Sponsor_ID, Is_Available FROM PRODUCTS WHERE Item_ID = :iid
+            SELECT Sponsor_ID, Is_Available FROM INVENTORY WHERE Item_ID = :iid
         """), {"iid": item_id}).fetchone()
         if not product:
             return "Product not found", 404
@@ -220,7 +220,7 @@ def sponsor_product_availability(item_id):
 
         newStatus = 0 if product.Is_Available else 1
         conn.execute(text("""
-            UPDATE PRODUCTS SET Is_Available = :status WHERE Item_ID = :iid
+            UPDATE INVENTORY SET Is_Available = :status WHERE Item_ID = :iid
         """), {"status": newStatus, "iid": item_id})
     return redirect(url_for("main.sponsor_products"))
 
