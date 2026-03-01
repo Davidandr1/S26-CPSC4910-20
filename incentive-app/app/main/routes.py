@@ -10,6 +10,7 @@ NAV_PAGES = [
     ("applications_list", "Applications"),
     ("admin_create_page", "Create New Admin"),
     ("sponsor_create_page", "Create New Sponsor User"),
+    ("sponsor_products", "My Products")
 ]
 
 def is_logged_in() -> bool:
@@ -155,6 +156,74 @@ def sponsor_home():
 
     return render_template("sponsorHome.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), drivers=drivers, sponsor=sponsor)
 
+@main_bp.get("/sponsor/products")
+def sponsor_products():
+    r = require_role("Sponsor")
+    if r:
+        return r
+    
+    sponsor_id = session.get("sponsor_id")
+    if not sponsor_id:
+        return "Sponsor ID not found in session", 400
+    
+    with engine.connect() as conn:
+        products = conn.execute(text("""
+            SELECT Item_ID, Item_Name, Prod_Description, Prod_Quantity, Prod_UnitPrice, Is_Available
+            FROM PRODUCTS
+            WHERE Sponsor_ID = :sid
+        """), {"sid": sponsor_id}).fetchall()
+
+    return render_template("sponsorProducts.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), products=products)
+
+@main_bp.get("/sponsor/products/<int:item_id>")
+def sponsor_product_detail(item_id):
+    r = require_role("Sponsor")
+    if r:
+        return r
+    
+    sponsor_id = session.get("sponsor_id")
+    if not sponsor_id:
+        return "Sponsor ID not found in session", 400
+    
+    with engine.connect() as conn:
+        product = conn.execute(text("""
+            SELECT Item_ID, Prod_SKU, Item_Name, Prod_Description, Prod_Quantity, Prod_UnitPrice, Is_Available
+            FROM PRODUCTS
+            WHERE Item_ID = :iid AND Sponsor_ID = :sid
+        """), {"iid": item_id, "sid": sponsor_id}).fetchone()
+    
+    if not product:
+        return "Product not found", 404
+    if product.Sponsor_ID != sponsor_id:
+        return "Forbidden", 403
+
+    return render_template("sponsorProductDetail.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), product=product)
+
+
+@main_bp.post("/sponsor/products/<int:item_id>/available")
+def sponsor_product_availability(item_id):
+    r = require_role("Sponsor")
+    if r:
+        return r
+    
+    sponsor_id = session.get("sponsor_id")
+    if not sponsor_id:
+        return "Sponsor ID not found in session", 400
+    
+    with engine.begin() as conn:
+        product = conn.execute(text("""
+            SELECT Sponsor_ID, Is_Available FROM PRODUCTS WHERE Item_ID = :iid
+        """), {"iid": item_id}).fetchone()
+        if not product:
+            return "Product not found", 404
+        if product.Sponsor_ID != sponsor_id:
+            return "Forbidden", 403
+
+        newStatus = 0 if product.Is_Available else 1
+        conn.execute(text("""
+            UPDATE PRODUCTS SET Is_Available = :status WHERE Item_ID = :iid
+        """), {"status": newStatus, "iid": item_id})
+    return redirect(url_for("main.sponsor_products"))
 
 @main_bp.get("/admin/home")
 def admin_home():
