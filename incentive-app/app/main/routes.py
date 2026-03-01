@@ -194,8 +194,7 @@ def sponsor_product_detail(item_id):
     
     if not product:
         return "Product not found", 404
-    if product.Sponsor_ID != sponsor_id:
-        return "Forbidden", 403
+
 
     return render_template("sponsorProductDetail.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), product=product)
 
