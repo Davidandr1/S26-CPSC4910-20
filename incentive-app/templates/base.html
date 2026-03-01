@@ -1,6 +1,7 @@
 <!doctype html>
 <html>
 <head>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
   <meta charset="utf-8">
   <title>{{ title or "Incentive App" }}</title>
   <style>
@@ -22,14 +23,31 @@
     <strong>Incentive App</strong>
 
     {% if logged_in %}
+      <a href="/home">Home</a>
+
       {% for item in nav_pages %}
         {% if item[0] == "about" %}
           <a href="/about">About</a>
-        {% else %}
+        {% elif item[0] == "store" %}
+          <a href="/store">Store</a>
+        {% elif item[0] == "applications_list" and session.user_type in ["Sponsor", "Admin"] %}
+          <a href="/applications">Applications</a>
+        {% elif item[0] == "admin_create_page" and session.user_type == "Admin" %}
+          <a href="/admin/create">Create New Admin</a>
+        {% elif item[0] == "sponsor_create_page" and session.user_type in ["Sponsor", "Admin"] %}
+          <a href="/sponsor/create">Create New Sponsor User</a>
+        {% elif item|length >= 3 %}
           <a href="/page/{{ item[2] }}">{{ item[1] }}</a>
         {% endif %}
       {% endfor %}
+
+      {# Show Store link for drivers if nav_pages doesn't include it #}
+      {% if session.user_type == 'Driver' %}
+        <a href="/store">Store</a>
+      {% endif %}
+
       <div class="spacer"></div>
+      <a href="/change-password">Change Password</a>
       <a href="/logout">Logout</a>
     {% else %}
       <div class="spacer"></div>
@@ -38,8 +56,36 @@
     {% endif %}
   </header>
 
+  {% if db_down %}
+    <div style="background:#b00020;color:white;padding:10px 18px;">
+      Warning: Database connection is currently unavailable. Some features may not work.
+    </div>
+  {% endif %}
+
   <main>
     {% block content %}{% endblock %}
   </main>
+
+  {% if logged_in %}
+  <script>
+  (function () {
+    const IDLE_LIMIT_MS = 15 * 60 * 1000; // 15 minutes
+    let timer = null;
+
+    function reset() {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        window.location.href = "/logout";
+      }, IDLE_LIMIT_MS);
+    }
+
+    ["mousemove","keydown","mousedown","touchstart","scroll"].forEach(evt => {
+      window.addEventListener(evt, reset, { passive: true });
+    });
+
+    reset();
+  })();
+  </script>
+  {% endif %}
 </body>
 </html>

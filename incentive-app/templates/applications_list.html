@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{%block content %}
+<div class="containter mt-4">
+
+	<h2>Driver Applications</h2>
+	<p class="text-muted">
+		{% if session.user_type == "Sponsor" %}
+			Applications for your company only
+		{% else %}
+			All driver applications
+		{% endif %}
+	</p>
+
+	{% if error %}
+		<div class="alert alert-danger">{{ error }}</div>
+	{% endif %}
+
+<form method="get" class="card p-3 mb-3">
+	<div class="row">
+		<div class="col-md-4">
+			<label class="form-label">Start Date</label>
+			<input type="date" name="start_date" class="form-control" value="{{ request.args.get('start_date', '') }}">
+		</div>
+
+		<div class="col-md-4">
+			<label class="form-label">End Date</label>
+			<input type="date" name="end_date" class="form-control" value="{{ request.args.get('end_date', '') }}">
+		</div>
+
+		{% if session.user_type == "Admin" %}
+			<div class="col-md-4">
+				<label class="form-label">Sponsor</label>
+				<select name="sponsor_id" class="form-control">
+					<option value="">All Sponsors</option>
+					{% for sponsor in sponsors %}
+						<option value="{{ sponsor.Sponsor_ID }}" {% if request.args.get('sponsor_id') == str(sponsor.Sponsor_ID) %}selected{% endif %}>
+							{{ sponsor.Sponsor_Name }}
+						</option>
+					{% endfor %}
+				</select>
+			</div>
+		{% endif %}
+	</div>
+
+	<button type="submit" class="btn btn-primary mt-3">Filter</button>
+</form>
+
+	{% if apps|length == 0 %}
+		<div class="alert alert-info mt-3">
+			No applications found.
+		</div>
+	{% else %}
+		<table class="table table-striped mt-3">
+			<thead>
+				<tr>
+					<th>Application ID	</th>
+					<th>First Name	</th>
+					<th>Last Name	</th>
+					<th>Status	</th>
+					<th>View	</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for a in apps %}
+				<tr>
+					<td>{{ a.Application_ID }}</td>
+					<td>{{ a.App_FName }}</td>
+					<td>{{ a.App_LNAME }}</td>
+					<td>{{ a.App_Status }}</td>
+					<td>
+						<a href="{{ url_for('main.application_details', app_id=a.Application_ID) }}"
+						   class="btn btn-primary btn-sm">
+						   View
+						</a> 
+					</td> 
+				</tr> 
+				{% endfor %} 
+			</tbody>
+		</table> 
+	{% endif %} 
+</div> 
+{% endblock %}

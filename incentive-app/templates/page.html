@@ -2,5 +2,10 @@
 {% set title = page_title %}
 {% block content %}
   <h1>{{ page_title }}</h1>
-  <p>This page is intentionally blank for Sprint 1 navigation testing.</p>
+
+  <div class="card">
+    <p>This page exists for navigation + role access testing.</p>
+    <p><strong>Logged in as:</strong> {{ session.username }}</p>
+    <p><strong>User Type:</strong> {{ session.user_type }}</p>
+  </div>
 {% endblock %}

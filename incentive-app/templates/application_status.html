@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% set title = "Application Status" %}
+
+{% block content %}
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h1 class="auth-title">Application Status</h1>
+      <p class="auth-subtitle">Status for {{ username }}</p>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <p><strong>Submitted:</strong> {{ submitted }}</p>
+        <p><strong>Current Status:</strong> {{ status }}</p>
+        {% if status == 'Pending' %}
+          <p>Your application is under review. You'll be contacted when a decision is made.</p>
+          <form method="post" action="/application/cancel" style="margin-top:12px;">
+            <input type="hidden" name="username" value="{{ username }}">
+            <button class="btn btn--danger" type="submit">Cancel Application</button>
+          </form>
+        {% elif status == 'Approved' %}
+          <p>Your application was approved. Please contact support if you cannot log in.</p>
+        {% elif status == 'Denied' %}
+          <p>Your application was denied. Contact support for more information.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="margin-top:12px;">
+      <a href="/" class="btn btn--primary">Back to Login</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

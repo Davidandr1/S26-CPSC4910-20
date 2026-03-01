@@ -6,8 +6,8 @@
   <div class="card">
     <h2 style="margin-top:0;">Sprint Information</h2>
     <div><strong>Team #:</strong> 20</div>
-    <div><strong>Version # (Sprint #):</strong> 1</div>
-    <div><strong>Release Date:</strong> 2/3/2026</div>
+    <div><strong>Version # (Sprint #):</strong> 4</div>
+    <div><strong>Release Date:</strong> 2/24/2026</div>
     <div><strong>Product Name:</strong> Good Driver Incentive Program</div>
     <div style="margin-top:10px;">
       <strong>Product Description:</strong><br>
@@ -15,7 +15,7 @@
     </div>
     <div style="margin-top:10px;">
       <strong>Demo Notes:</strong><br>
-      We haven't linked the database to our website for Sprint 1, so the About Information is not dynamically pulled from the database. Users are also not saved or checked. These pages only showcase that our instances are set up and that we have started work on our app.
+      This demo will include the new password reset system, an overhauled account creation system, and partial application system. It also has a basic Storefront UI while we implement the APIs. We are working on the About Page DB link, we just wanted to speak to our client first.
     </div>
   </div>
 
@@ -26,4 +26,9 @@
     <div><strong>Role:</strong> {{ user.role }}</div>
     <div><strong>Sponsor:</strong> {{ user.sponsor }}</div>
   </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">Database Status</h2>
+    <div><strong>Connection Status:</strong> {{ db_status }}</div>
+    <div><strong>Total Users:</strong> {{ count }}</div>
 {% endblock %}
