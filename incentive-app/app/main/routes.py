@@ -345,6 +345,7 @@ def evaluate_applications(app_id):
         if r2:
             return r2
     decision = request.form.get("decision")
+    reason = request.form.get("reason")
 
     with engine.begin() as conn:
         app = conn.execute(text(""" SELECT App_Sponsor_ID FROM APPLICATIONS WHERE Application_ID = :aid"""), 
@@ -353,8 +354,15 @@ def evaluate_applications(app_id):
             return "Application not found", 404
         if session["user_type"] == "Sponsor" and app["App_Sponsor_ID"] != session["sponsor_id"]:
             return "Forbidden", 403
+        
+        if decision == "Denied" and not reason:
+            return render_template(
+                "application_detail.html",
+                app=app, nav_pages=NAV_PAGES, logged_in=is_logged_in(),
+                error="Reason for denial is required when denying an application."
+            )
 
-        conn.execute(text("""UPDATE APPLICATIONS SET App_Status = :status WHERE Application_ID = :aid"""), {"status": decision, "aid": app_id})
+        conn.execute(text("""UPDATE APPLICATIONS SET App_Status = :status, Denial_Reason = :reason WHERE Application_ID = :aid"""), {"status": decision, "reason": reason if decision == "Denied" else None, "aid": app_id})
         if decision == "Approved":
             conn.execute(text("""DELETE FROM APPLICATIONS WHERE Application_ID = :aid"""), {"aid": app_id})
     return redirect(url_for("main.applications_list"))
