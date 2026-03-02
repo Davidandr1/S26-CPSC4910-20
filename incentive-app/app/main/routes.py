@@ -324,7 +324,7 @@ def application_details(app_id):
             return r2
     with engine.connect() as conn:
         app = conn.execute(text(""" SELECT Application_ID, App_Sponsor_ID, App_Username,App_Status, App_FName, App_LNAME, App_Email, App_Phone_Num,
-                                License_Num, App_Time FROM APPLICATIONS
+                                License_Num, App_Time, Denial_Reason FROM APPLICATIONS
                                  WHERE Application_ID = :aid"""),
                                {"aid": app_id}).fetchone()
     if not app:
