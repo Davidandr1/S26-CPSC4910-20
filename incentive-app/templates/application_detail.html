@@ -28,6 +28,13 @@
         <form action="{{url_for('main.evaluate_applications', app_id=app.Application_ID) }}"
             method="post" style="display:inline;">
           <input type="hidden" name="decision" value="Denied">
+          <div class="mb-2">
+            <label for="reason">Reason for Denial (Required):</label>
+            <textarea class="form-control" name="reason" id="reason" required placeholder="Enter reason for denial"></textarea> 
+            {% if error %}
+              <div class="field-error">{{ error }}</div>
+            {% endif %}
+          </div>
           <button class="btn btn-danger">Deny</button>
         </form>
         <a href="{{url_for('main.applications_list') }}" class="btn btn-secondary ms-2">
