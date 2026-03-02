@@ -3,11 +3,15 @@ import requests
 from typing import List, Dict, Optional
 from sqlalchemy import text
 from app.db import engine
+import base64
 
 class ProductAPIService:
     def __init__(self):
-        self.api_key = os.environ.get("EBAY_API_KEY")
         self.base_url = os.environ.get("EBAY_API_BASE_URL", "https://api.ebay.com")
+        client_id = os.environ.get("EBAY_CLIENT_ID", "")
+        client_secret = os.environ.get("EBAY_CLIENT_SECRET", "")
+        credentials = f"{client_id}:{client_secret}"
+        self.encoded_credentials = base64.b64encode(credentials.encode()).decode()
 
     def get_products(self, query: str, limit: int = 10) -> List[Dict]:
         try:
@@ -59,6 +63,6 @@ class ProductAPIService:
 
     def _get_headers(self) -> Dict:
         return {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Basic {self.encoded_credentials}",
             "Content-Type": "application/json"
         }
