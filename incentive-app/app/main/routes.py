@@ -128,7 +128,15 @@ def driver_home():
     r = require_role("Driver")
     if r:
         return r
-    return render_template("page.html", page_title="Driver Home", nav_pages=NAV_PAGES, logged_in=is_logged_in())
+
+    driver_id = session.get("user_id")
+    with engine.connect() as conn:
+        transactions = conn.execute(text("""
+            SELECT Points_Changed, Reason, Transaction_Time FROM POINT_TRANSACTIONS WHERE Driver_ID = :uid
+        """), {"uid": driver_id}).fetchall()
+        points = conn.execute(text("""SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"""), {"uid": driver_id}).fetchone().User_Points
+
+    return render_template("driverHome.html", page_title="Driver Home", nav_pages=NAV_PAGES, logged_in=is_logged_in(), transactions=transactions, points=points)
 
 
 @main_bp.get("/sponsor/home")

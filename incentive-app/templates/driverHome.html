@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% set title = "Driver Home" %}
+{% block content %}
+<div class="card">
+    <p>Welcome back.</p>
+    <p><strong>Logged in as:</strong> {{ session.username }}</p>
+    <p><strong>User Type:</strong> {{ session.user_type }}</p>
+</div>
+
+<div class="card">
+    <h3>Points Summary</h3>
+    <p><strong>Total Points:</strong> {{ points }}</p>
+    {% if transactions|length == 0 %}
+        <p><em>No transactions found.</em></p>
+    {% else %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Points Change</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr>
+                    <td>{{ txn.Transaction_Time }}</td>
+                    <td>{{ txn.Reason }}</td>
+                    <td>{{ '+' if txn.Points_Changed > 0 else '' }}{{ txn.Points_Changed }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+
+{% endblock %}
