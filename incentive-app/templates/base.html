@@ -44,10 +44,6 @@
         {% endif %}
       {% endfor %}
 
-      {# Show Store link for drivers if nav_pages doesn't include it #}
-      {% if session.user_type == 'Driver' %}
-        <a href="/store">Store</a>
-      {% endif %}
 
       <div class="spacer"></div>
       <a href="/change-password">Change Password</a>

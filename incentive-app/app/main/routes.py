@@ -479,7 +479,7 @@ def cart_checkout():
             "DELETE FROM CART_ITEMS WHERE Driver_ID = :uid"
         ), {"uid": uid})
 
-    return redirect(url_for("   main.driver_home"))
+    return redirect(url_for("main.driver_home"))
 
 @main_bp.get("/page/<name>")
 def blank_page(name):
