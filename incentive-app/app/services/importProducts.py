@@ -9,7 +9,6 @@ class ProductAPIService:
         self.api_key = os.environ.get("EBAY_API_KEY")
         self.api_secret = os.environ.get("EBAY_SECRET_KEY")
         self.base_url = os.environ.get("EBAY_API_BASE_URL", "https://api.ebay.com")
-        #TODO: fill out with environment variables and whatnot. too late at night to do this rn
 
     def get_products(self, query: str, limit: int = 10) -> List[Dict]:
         try:
