@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from sqlalchemy import text
 from app.db import engine
 
@@ -64,13 +64,13 @@ def fetch_current_user():
         sponsor_name = None
         if u.User_Type == "Driver":
             row = conn.execute(text("""
-                SELECT s.Sponsor_Name
+                SELECT s.Sponsor_Name, d.User_Points
                 FROM DRIVERS d
                 JOIN SPONSORS s ON s.Sponsor_ID = d.Sponsor_ID
                 WHERE d.User_ID = :id
             """), {"id": user_id}).fetchone()
             sponsor_name = row.Sponsor_Name if row else None
-            user["points"] = row.User_Points if row else 0
+            user["points"] = row.User_Points if row and hasattr(row, 'User_Points') else 0
 
         elif u.User_Type == "Sponsor":
             row = conn.execute(text("""
@@ -138,6 +138,20 @@ def driver_home():
         points = conn.execute(text("""SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"""), {"uid": driver_id}).fetchone().User_Points
 
     return render_template("driverHome.html", page_title="Driver Home", nav_pages=NAV_PAGES, logged_in=is_logged_in(), transactions=transactions, points=points)
+
+
+@main_bp.get("/driver/points")
+def driver_points_api():
+    r = require_role("Driver")
+    if r:
+        return r
+
+    driver_id = session.get("user_id")
+    with engine.connect() as conn:
+        row = conn.execute(text("SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"), {"uid": driver_id}).fetchone()
+
+    points = row.User_Points if row else 0
+    return jsonify({"points": points})
 
 
 @main_bp.get("/sponsor/home")
@@ -238,7 +252,57 @@ def admin_home():
     r = require_role("Admin")
     if r:
         return r
-    return render_template("page.html", page_title="Admin Home", nav_pages=NAV_PAGES, logged_in=is_logged_in())
+    return render_template("adminHome.html", page_title="Admin Home", nav_pages=NAV_PAGES, logged_in=is_logged_in())
+
+
+@main_bp.get('/admin/sponsors')
+def admin_sponsors():
+    r = require_role('Admin')
+    if r:
+        return r
+
+    # Fetch sponsors with driver counts
+    with engine.connect() as conn:
+        sponsors = conn.execute(text('''
+            SELECT s.Sponsor_ID, s.Sponsor_Name, s.Sponsor_Email, s.Sponsor_Phone,
+                   s.Sponsor_Address, s.Sponsor_PointConversion, s.Sponsor_Creation,
+                   COALESCE(COUNT(d.User_ID),0) AS driver_count
+            FROM SPONSORS s
+            LEFT JOIN DRIVERS d ON d.Sponsor_ID = s.Sponsor_ID
+            GROUP BY s.Sponsor_ID, s.Sponsor_Name, s.Sponsor_Email, s.Sponsor_Phone, s.Sponsor_Address, s.Sponsor_PointConversion, s.Sponsor_Creation
+            ORDER BY s.Sponsor_Name
+        ''')).fetchall()
+
+    return render_template('sponsorList.html', nav_pages=NAV_PAGES, logged_in=is_logged_in(), sponsors=sponsors)
+
+
+@main_bp.get('/admin/users')
+def admin_users():
+    r = require_role('Admin')
+    if r:
+        return r
+
+    # Sorting options
+    sort = request.args.get('sort', 'username')
+    allowed = {
+        'username': 'Username',
+        'type': 'User_Type',
+        'email': 'User_Email',
+        'created': 'User_Creation',
+        'points': 'd.User_Points'
+    }
+    order_by = allowed.get(sort, 'Username')
+
+    with engine.connect() as conn:
+        users = conn.execute(text(f'''
+            SELECT u.User_ID, u.Username, u.User_FName, u.User_LNAME, u.User_Email, u.User_Phone_Num, u.User_Type, u.User_Creation,
+                   d.User_Points
+            FROM USERS u
+            LEFT JOIN DRIVERS d ON d.User_ID = u.User_ID
+            ORDER BY {order_by}
+        ''')).fetchall()
+
+    return render_template('userList.html', nav_pages=NAV_PAGES, logged_in=is_logged_in(), users=users, current_sort=sort)
 
 @main_bp.get("/store")
 def storefront():

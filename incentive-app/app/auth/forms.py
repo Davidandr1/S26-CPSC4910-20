@@ -89,6 +89,40 @@ class ChangePasswordForm(Form):
     ])
 
 
+class ProfileForm(Form):
+    first_name = StringField("First Name", [
+        validators.DataRequired(message="First name is required.")
+    ])
+
+    last_name = StringField("Last Name", [
+        validators.DataRequired(message="Last name is required.")
+    ])
+
+    email = StringField("Email", [
+        validators.DataRequired(message="Email is required.")
+    ])
+
+    phone = StringField("Phone Number", [
+        validators.DataRequired(message="Phone number is required.")
+    ])
+
+    def validate(self):
+        ok = super().validate()
+        if not ok:
+            return False
+
+        if not is_valid_email(self.email.data):
+            self.email.errors.append("Enter a valid email address.")
+            return False
+
+        digits = normalize_phone(self.phone.data)
+        if len(digits) < 10 or len(digits) > 15:
+            self.phone.errors.append("Enter a valid phone number (10–15 digits).")
+            return False
+
+        return True
+
+
 class AdminCreateForm(Form):
     username = StringField("Username", [
         validators.DataRequired(message="Username is required."),

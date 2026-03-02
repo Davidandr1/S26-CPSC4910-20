@@ -1,10 +1,24 @@
 {% extends "base.html" %}
 {% set title = "Driver Home" %}
 {% block content %}
-<div class="card">
-    <p>Welcome back.</p>
-    <p><strong>Logged in as:</strong> {{ session.username }}</p>
-    <p><strong>User Type:</strong> {{ session.user_type }}</p>
+<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
+    <div class="card" style="flex:1;min-width:220px;">
+        <p>Welcome back.</p>
+        <p><strong>Logged in as:</strong> {{ session.username }}</p>
+        <p><strong>User Type:</strong> {{ session.user_type }}</p>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;align-items:center;min-width:160px;">
+        <div class="point-balance" id="points-box" style="text-align:center;padding:16px;border-radius:12px;">
+            <span style="font-size:13px;opacity:0.9;display:block;margin-bottom:6px;">Your Points</span>
+            <div id="points-value" style="font-size:26px;font-weight:800;">{{ points or 0 }}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <button id="refresh-points-btn" class="btn btn--primary" type="button">Refresh</button>
+            <a class="btn btn-secondary" href="{{ url_for('auth.profile_page') }}">Edit Profile</a>
+        </div>
+    </div>
+
 </div>
 
 <div class="card">
@@ -34,4 +48,30 @@
     {% endif %}
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btn = document.getElementById('refresh-points-btn');
+    if (!btn) return;
+    btn.addEventListener('click', async function () {
+        const original = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = 'Refreshing...';
+        try {
+            const resp = await fetch("{{ url_for('main.driver_points_api') }}", { credentials: 'same-origin' });
+            if (!resp.ok) throw new Error('Network error');
+            const data = await resp.json();
+            const val = document.getElementById('points-value');
+            if (val) val.textContent = (data.points ?? 0).toString();
+        } catch (e) {
+            alert('Unable to refresh points.');
+        } finally {
+            btn.disabled = false;
+            btn.innerText = original;
+        }
+    });
+});
+</script>
 {% endblock %}
