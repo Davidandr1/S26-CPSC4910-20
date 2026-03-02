@@ -17,6 +17,10 @@
         {% if session.user_type == "Admin" %}
           <p><strong>Sponsor ID:</strong> {{app.App_Sponsor_ID }}</p>
         {% endif %}
+        <p><strong>Application Time:</strong> {{app.App_Time }}</p>
+        {% if app.App_Status == "Denied" and app.Denial_Reason %}
+          <p><strong>Denial Reason:</strong> {{ app.Denial_Reason }}</p>
+        {% endif %}
 
         <hr>
         <form action="{{url_for('main.evaluate_applications', app_id=app.Application_ID) }}"
