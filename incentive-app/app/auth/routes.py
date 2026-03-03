@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.db import engine
 from app.auth.forms import LoginForm, RegisterForm, ChangePasswordForm, normalize_phone, AdminCreateForm, SponsorCreateForm
+from app.auth.forms import ProfileForm
 import secrets, string, requests, os
 
 auth_bp = Blueprint("auth", __name__)
@@ -65,7 +66,7 @@ def login_submit():
         # If no user, check if there's a pending application with this username
         with engine.connect() as conn:
             app_row = conn.execute(text("""
-                SELECT Application_ID, App_Status, App_Time
+                SELECT Application_ID, App_Status, App_Time, Denial_Reason
                 FROM APPLICATIONS WHERE App_Username = :u"""), 
                 {"u": username}).fetchone()
 
@@ -77,7 +78,7 @@ def login_submit():
             except Exception:
                 pass
 
-            return render_template("application_status.html",username=username, status=app_row.App_Status,submitted=submitted,
+            return render_template("application_status.html",username=username, status=app_row.App_Status,submitted=submitted, denial_reason=app_row.Denial_Reason,
                                     nav_pages=NAV_PAGES,logged_in=is_logged_in()), 200
 
         return render_template("login.html", form=form, error="Invalid username or password.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
@@ -93,10 +94,15 @@ def login_submit():
 
     with engine.connect() as conn:
         if row.User_Type == "Sponsor":
-            srow = conn.execute(text("SELECT Sponsor_ID FROM SPONSOR_USER WHERE User_ID = :uid"),
-                               {"uid": row.User_ID}).fetchone()
+            srow = conn.execute(text("""
+                SELECT su.Sponsor_ID, s.Sponsor_Name
+                FROM SPONSOR_USER su
+                JOIN SPONSORS s ON su.Sponsor_ID = s.Sponsor_ID
+                WHERE su.User_ID = :uid
+            """), {"uid": row.User_ID}).fetchone()
             if srow:
                 session["sponsor_id"] = srow.Sponsor_ID
+                session["sponsor_name"] = srow.Sponsor_Name
     
     return redirect(url_for("main.home_redirect"))
 
@@ -231,6 +237,60 @@ def register_page():
         nav_pages=NAV_PAGES,
         logged_in=is_logged_in()
     )
+
+
+@auth_bp.get("/profile")
+def profile_page():
+    r = require_login_redirect()
+    if r:
+        return r
+
+    user_id = session.get("user_id")
+    with engine.connect() as conn:
+        row = conn.execute(text("SELECT User_FName, User_LNAME, User_Email, User_Phone_Num FROM USERS WHERE User_ID = :uid"), {"uid": user_id}).fetchone()
+
+    if not row:
+        return render_template("page.html", page_title="User Not Found", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 404
+
+    form = ProfileForm(data={
+        "first_name": row.User_FName,
+        "last_name": row.User_LNAME,
+        "email": row.User_Email,
+        "phone": row.User_Phone_Num
+    }, meta={"csrf": False})
+
+    return render_template("profile.html", form=form, error=None, nav_pages=NAV_PAGES, logged_in=is_logged_in())
+
+
+@auth_bp.post("/profile")
+def profile_submit():
+    r = require_login_redirect()
+    if r:
+        return r
+
+    form = ProfileForm(request.form, meta={"csrf": False})
+    if not form.validate():
+        return render_template("profile.html", form=form, error=None, nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
+
+    user_id = session.get("user_id")
+    first_name = form.first_name.data.strip()
+    last_name = form.last_name.data.strip()
+    email = form.email.data.strip()
+    phone = normalize_phone(form.phone.data)
+
+    try:
+        with engine.begin() as conn:
+            # Ensure email/phone uniqueness for other users
+            existing = conn.execute(text("SELECT User_ID FROM USERS WHERE (User_Email = :e OR User_Phone_Num = :p) AND User_ID != :uid"), {"e": email, "p": phone, "uid": user_id}).fetchone()
+            if existing:
+                form.email.errors.append("Email or phone already in use by another account.")
+                return render_template("profile.html", form=form, error=None, nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
+
+            conn.execute(text("UPDATE USERS SET User_FName = :fn, User_LNAME = :ln, User_Email = :em, User_Phone_Num = :ph WHERE User_ID = :uid"), {"fn": first_name, "ln": last_name, "em": email, "ph": phone, "uid": user_id})
+    except Exception:
+        return render_template("profile.html", form=form, error="Database error saving profile.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 500
+
+    return render_template("page.html", page_title="Profile Updated", nav_pages=NAV_PAGES, logged_in=is_logged_in())
 
 @auth_bp.post("/register")
 def register_submit():

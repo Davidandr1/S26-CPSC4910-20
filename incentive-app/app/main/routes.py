@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from sqlalchemy import text
 from app.db import engine
 
@@ -64,12 +64,13 @@ def fetch_current_user():
         sponsor_name = None
         if u.User_Type == "Driver":
             row = conn.execute(text("""
-                SELECT s.Sponsor_Name
+                SELECT s.Sponsor_Name, d.User_Points
                 FROM DRIVERS d
                 JOIN SPONSORS s ON s.Sponsor_ID = d.Sponsor_ID
                 WHERE d.User_ID = :id
             """), {"id": user_id}).fetchone()
             sponsor_name = row.Sponsor_Name if row else None
+            user["points"] = row.User_Points if row and hasattr(row, 'User_Points') else 0
 
         elif u.User_Type == "Sponsor":
             row = conn.execute(text("""
@@ -137,6 +138,20 @@ def driver_home():
         points = conn.execute(text("""SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"""), {"uid": driver_id}).fetchone().User_Points
 
     return render_template("driverHome.html", page_title="Driver Home", nav_pages=NAV_PAGES, logged_in=is_logged_in(), transactions=transactions, points=points)
+
+
+@main_bp.get("/driver/points")
+def driver_points_api():
+    r = require_role("Driver")
+    if r:
+        return r
+
+    driver_id = session.get("user_id")
+    with engine.connect() as conn:
+        row = conn.execute(text("SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"), {"uid": driver_id}).fetchone()
+
+    points = row.User_Points if row else 0
+    return jsonify({"points": points})
 
 
 @main_bp.get("/sponsor/home")
@@ -237,7 +252,57 @@ def admin_home():
     r = require_role("Admin")
     if r:
         return r
-    return render_template("page.html", page_title="Admin Home", nav_pages=NAV_PAGES, logged_in=is_logged_in())
+    return render_template("adminHome.html", page_title="Admin Home", nav_pages=NAV_PAGES, logged_in=is_logged_in())
+
+
+@main_bp.get('/admin/sponsors')
+def admin_sponsors():
+    r = require_role('Admin')
+    if r:
+        return r
+
+    # Fetch sponsors with driver counts
+    with engine.connect() as conn:
+        sponsors = conn.execute(text('''
+            SELECT s.Sponsor_ID, s.Sponsor_Name, s.Sponsor_Email, s.Sponsor_Phone,
+                   s.Sponsor_Address, s.Sponsor_PointConversion, s.Sponsor_Creation,
+                   COALESCE(COUNT(d.User_ID),0) AS driver_count
+            FROM SPONSORS s
+            LEFT JOIN DRIVERS d ON d.Sponsor_ID = s.Sponsor_ID
+            GROUP BY s.Sponsor_ID, s.Sponsor_Name, s.Sponsor_Email, s.Sponsor_Phone, s.Sponsor_Address, s.Sponsor_PointConversion, s.Sponsor_Creation
+            ORDER BY s.Sponsor_Name
+        ''')).fetchall()
+
+    return render_template('sponsorList.html', nav_pages=NAV_PAGES, logged_in=is_logged_in(), sponsors=sponsors)
+
+
+@main_bp.get('/admin/users')
+def admin_users():
+    r = require_role('Admin')
+    if r:
+        return r
+
+    # Sorting options
+    sort = request.args.get('sort', 'username')
+    allowed = {
+        'username': 'Username',
+        'type': 'User_Type',
+        'email': 'User_Email',
+        'created': 'User_Creation',
+        'points': 'd.User_Points'
+    }
+    order_by = allowed.get(sort, 'Username')
+
+    with engine.connect() as conn:
+        users = conn.execute(text(f'''
+            SELECT u.User_ID, u.Username, u.User_FName, u.User_LNAME, u.User_Email, u.User_Phone_Num, u.User_Type, u.User_Creation,
+                   d.User_Points
+            FROM USERS u
+            LEFT JOIN DRIVERS d ON d.User_ID = u.User_ID
+            ORDER BY {order_by}
+        ''')).fetchall()
+
+    return render_template('userList.html', nav_pages=NAV_PAGES, logged_in=is_logged_in(), users=users, current_sort=sort)
 
 @main_bp.get("/store")
 def storefront():
@@ -247,10 +312,16 @@ def storefront():
 
     user = fetch_current_user()
 
-    #Temporary fake data until DB is connected
-    products = []
-    categories = []
-    cart_count = 0
+    with engine.connect() as conn:
+        products = conn.execute(text("""
+            SELECT i.Item_ID, i.Item_Name, i.Prod_Description, i.Prod_Quantity, i.Is_Available,
+                ROUND(i.Prod_UnitPrice / s.Sponsor_PointConversion) AS point_cost
+            FROM INVENTORY i
+            JOIN SPONSORS s ON i.Sponsor_ID = s.Sponsor_ID
+            JOIN DRIVERS d ON d.Sponsor_ID = i.Sponsor_ID
+            WHERE d.User_ID = :uid AND i.Is_Available = TRUE
+            """), {"uid": session["user_id"]}).fetchall()
+
 
     search = request.args.get("search")
     category_filter = request.args.get("category")
@@ -292,6 +363,12 @@ def storefront():
             SELECT MAX(Prod_UnitPrice) AS max_price FROM INVENTORY WHERE Sponsor_ID = :sid AND Is_Available = TRUE
         """), {"sid": session.get("sponsor_id")}).fetchone().max_price or 1000
 
+        row = conn.execute(text("""
+            SELECT COALESCE(SUM(Quantity), 0) AS cnt
+            FROM CART_ITEMS
+            WHERE Driver_ID = :uid
+        """), {"uid": session["user_id"]}).fetchone()
+        cart_count = row.cnt
 
     return render_template(
         "storefront.html",
@@ -300,9 +377,150 @@ def storefront():
         user=user,
         products=products,
         categories=categories,
-        max_point_cost=max_point_cost
+        max_point_cost=max_point_cost,
+        cart_count=cart_count
     )
 
+
+
+@main_bp.get("/cart")
+def cart_page():
+    r = require_role("Driver")
+    if r: return r
+    user = fetch_current_user()
+    with engine.connect() as conn:
+        cart_items = conn.execute(text("""
+            SELECT ci.Item_ID as id, i.Item_Name as name, i.Prod_Description as description,
+                   ROUND(i.Prod_UnitPrice / s.Sponsor_PointConversion) AS point_cost,
+                   ci.Quantity as quantity, i.Prod_Quantity as stock, '' as image_url
+            FROM CART_ITEMS ci
+            JOIN INVENTORY i ON ci.Item_ID = i.Item_ID
+            JOIN SPONSORS s ON i.Sponsor_ID = s.Sponsor_ID
+            WHERE ci.Driver_ID = :uid
+        """), {"uid": session["user_id"]}).fetchall()
+        total_cost = sum(i.point_cost * i.quantity for i in cart_items)
+    return render_template("cart.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(),
+                           user=user, cart_items=cart_items, total_cost=total_cost)
+
+
+# Add to cart
+@main_bp.post("/cart/add/<int:item_id>")
+def cart_add(item_id):
+    r = require_role("Driver")
+    if r: return r
+    with engine.begin() as conn:
+        existing = conn.execute(text(
+            "SELECT Quantity FROM CART_ITEMS WHERE Driver_ID=:uid AND Item_ID=:iid"
+        ), {"uid": session["user_id"], "iid": item_id}).fetchone()
+        if existing:
+            conn.execute(text("UPDATE CART_ITEMS SET Quantity=Quantity+1 WHERE Driver_ID=:uid AND Item_ID=:iid"),
+                         {"uid": session["user_id"], "iid": item_id})
+        else:
+            conn.execute(text("INSERT INTO CART_ITEMS (Driver_ID, Item_ID, Quantity) VALUES (:uid, :iid, 1)"),
+                         {"uid": session["user_id"], "iid": item_id})
+    return redirect(url_for("main.storefront"))
+
+
+# Update quantity
+@main_bp.post("/cart/update/<int:item_id>")
+def cart_update(item_id):
+    r = require_role("Driver")
+    if r: return r
+    quantity = int(request.form.get("quantity", 1))
+    with engine.begin() as conn:
+        if quantity <= 0:
+            conn.execute(text("DELETE FROM CART_ITEMS WHERE Driver_ID=:uid AND Item_ID=:iid"),
+                         {"uid": session["user_id"], "iid": item_id})
+        else:
+            conn.execute(text("UPDATE CART_ITEMS SET Quantity=:qty WHERE Driver_ID=:uid AND Item_ID=:iid"),
+                         {"qty": quantity, "uid": session["user_id"], "iid": item_id})
+    return redirect(url_for("main.cart_page"))
+
+
+# Remove item
+@main_bp.post("/cart/remove/<int:item_id>")
+def cart_remove(item_id):
+    r = require_role("Driver")
+    if r: return r
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM CART_ITEMS WHERE Driver_ID=:uid AND Item_ID=:iid"),
+                     {"uid": session["user_id"], "iid": item_id})
+    return redirect(url_for("main.cart_page"))
+
+
+# Checkout
+@main_bp.post("/cart/checkout")
+def cart_checkout():
+    r = require_role("Driver")
+    if r: return r
+    uid = session["user_id"]
+    with engine.begin() as conn:
+        # Get cart items with point costs
+        cart_items = conn.execute(text("""
+            SELECT ci.Item_ID, i.Item_Name, i.Prod_SKU,
+                   ROUND(i.Prod_UnitPrice / s.Sponsor_PointConversion) AS point_cost,
+                   ci.Quantity, d.Sponsor_ID
+            FROM CART_ITEMS ci
+            JOIN INVENTORY i ON ci.Item_ID = i.Item_ID
+            JOIN SPONSORS s ON i.Sponsor_ID = s.Sponsor_ID
+            JOIN DRIVERS d ON d.User_ID = ci.Driver_ID
+            WHERE ci.Driver_ID = :uid
+        """), {"uid": uid}).fetchall()
+
+        if not cart_items:
+            return redirect(url_for("main.cart_page"))
+
+        total_cost = sum(i.point_cost * i.Quantity for i in cart_items)
+        sponsor_id = cart_items[0].Sponsor_ID
+
+        # Check driver has enough points
+        driver = conn.execute(text(
+            "SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"
+        ), {"uid": uid}).fetchone()
+
+        if driver.User_Points < total_cost:
+            return redirect(url_for("main.cart_page"))
+
+        # Create the order
+        result = conn.execute(text("""
+            INSERT INTO ORDERS (Driver_ID, Sponsor_ID, Order_Status, Total_Points)
+            VALUES (:uid, :sid, 'Pending', :total)
+        """), {"uid": uid, "sid": sponsor_id, "total": total_cost})
+        order_id = result.lastrowid
+
+        # Insert line items
+        for item in cart_items:
+            stock_check = conn.execute(text(
+                "SELECT Prod_Quantity FROM INVENTORY WHERE Item_ID = :iid"
+            ), {"iid": item.Item_ID}).fetchone()
+
+            if not stock_check or stock_check.Prod_Quantity < item.Quantity:
+                flash(f"Sorry, {item.Item_Name} is out of stock.")
+                return redirect(url_for("main.cart_page"))
+            
+            conn.execute(text("""
+                INSERT INTO LINE_ITEMS (Item_ID, Order_ID, Prod_SKU, Item_Name, Price_Points, Line_Quantity)
+                VALUES (:iid, :oid, :sku, :name, :pts, :qty)
+            """), {"iid": item.Item_ID, "oid": order_id, "sku": item.Prod_SKU,
+                  "name": item.Item_Name, "pts": item.point_cost, "qty": item.Quantity})
+
+        # Deduct points from driver
+        conn.execute(text("""
+            UPDATE DRIVERS SET User_Points = User_Points - :total WHERE User_ID = :uid
+        """), {"total": total_cost, "uid": uid})
+
+        # Log the point transaction
+        conn.execute(text("""
+            INSERT INTO POINT_TRANSACTIONS (Driver_ID, Sponsor_ID, Points_Changed, Reason)
+            VALUES (:uid, :sid, :pts, 'Order placed')
+        """), {"uid": uid, "sid": sponsor_id, "pts": -total_cost})
+
+        # Clear the cart
+        conn.execute(text(
+            "DELETE FROM CART_ITEMS WHERE Driver_ID = :uid"
+        ), {"uid": uid})
+
+    return redirect(url_for("main.driver_home"))
 
 @main_bp.get("/page/<name>")
 def blank_page(name):

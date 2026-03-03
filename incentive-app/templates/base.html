@@ -20,6 +20,7 @@
 </head>
 <body>
   <header>
+    <img src="{{ url_for('static', filename='images/auth-icon.svg') }}" alt="Logo" style="height:36px;margin-right:12px; color: #2563eb;">
     <strong>Incentive App</strong>
 
     {% if logged_in %}
@@ -43,10 +44,6 @@
         {% endif %}
       {% endfor %}
 
-      {# Show Store link for drivers if nav_pages doesn't include it #}
-      {% if session.user_type == 'Driver' %}
-        <a href="/store">Store</a>
-      {% endif %}
 
       <div class="spacer"></div>
       <a href="/change-password">Change Password</a>

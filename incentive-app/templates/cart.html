@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Your Cart{% endblock %}
+
+{% block content %}
+<div class="store-container">
+
+    <!-- Header -->
+    <div class="store-header">
+        <div>
+            <a href="/store" class="back-link">← Back to Store</a>
+            <h1>Your Cart</h1>
+            <p class="store-sub">Review your selected items</p>
+        </div>
+        <div class="point-balance">
+            <span>Your Balance</span>
+            <strong>{{ user.points }} pts</strong>
+        </div>
+    </div>
+
+    {% if cart_items %}
+    <div class="cart-layout">
+
+        <!-- Cart Items -->
+        <div class="cart-items">
+            {% for item in cart_items %}
+            <div class="cart-card">
+                <img src="{{ item.image_url }}" class="cart-img" alt="{{ item.name }}">
+                <div class="cart-info">
+                    <h3 class="cart-name">{{ item.name }}</h3>
+                    <p class="cart-desc">{{ item.description }}</p>
+                    <span class="points">{{ item.point_cost }} pts each</span>
+                </div>
+                <div class="cart-controls">
+                    <div class="qty-control">
+                        <form method="POST" action="/cart/update/{{ item.id }}" class="qty-form">
+                            <input type="hidden" name="quantity" value="{{ item.quantity - 1 }}">
+                            <button class="qty-btn" {% if item.quantity <= 1 %}disabled{% endif %}>−</button>
+                        </form>
+                        <span class="qty-display">{{ item.quantity }}</span>
+                        <form method="POST" action="/cart/update/{{ item.id }}" class="qty-form">
+                            <input type="hidden" name="quantity" value="{{ item.quantity + 1 }}">
+                            <button class="qty-btn" {% if item.quantity >= item.stock %}disabled{% endif %}>+</button>
+                        </form>
+                    </div>
+                    <span class="cart-subtotal">{{ item.point_cost * item.quantity }} pts</span>
+                    <form method="POST" action="/cart/remove/{{ item.id }}">
+                        <button class="btn-remove">✕ Remove</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Order Summary -->
+        <div class="cart-summary">
+            <h2 class="summary-title">Order Summary</h2>
+
+            <div class="summary-rows">
+                {% for item in cart_items %}
+                <div class="summary-row">
+                    <span>{{ item.name }} × {{ item.quantity }}</span>
+                    <span>{{ item.point_cost * item.quantity }} pts</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="summary-divider"></div>
+
+            <div class="summary-total">
+                <span>Total</span>
+                <strong>{{ total_cost }} pts</strong>
+            </div>
+
+            <div class="summary-balance">
+                <span>Balance After</span>
+                <strong class="{% if user.points >= total_cost %}balance-ok{% else %}balance-low{% endif %}">
+                    {{ user.points - total_cost }} pts
+                </strong>
+            </div>
+
+            {% if user.points >= total_cost %}
+                <form method="POST" action="/cart/checkout">
+                    <button class="btn btn-primary btn-full">Confirm & Redeem</button>
+                </form>
+            {% else %}
+                <button class="btn btn-disabled btn-full" disabled>Insufficient Points</button>
+                <p class="insufficient-msg">You need {{ total_cost - user.points }} more pts to place this order.</p>
+            {% endif %}
+
+            <a href="/store" class="btn btn-secondary btn-full">
+                Continue Shopping
+            </a>
+        </div>
+
+    </div>
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="empty-cart">
+        <h2>Your cart is empty</h2>
+        <p>Browse the store and add some items!</p>
+        <a href="/store" class="btn btn-primary">Go to Store</a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

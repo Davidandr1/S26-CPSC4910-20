@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% set title = "Admin Home" %}
+{% block content %}
+<h1>Admin Home</h1>
+<div class="card">
+  <p>Welcome, admin. Use the links below to manage data.</p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;">
+    <a class="btn btn--primary" href="{{ url_for('main.admin_users') }}">View All Users</a>
+    <a class="btn btn--primary" href="{{ url_for('main.admin_sponsors') }}">View Sponsors</a>
+  </div>
+</div>
+{% endblock %}

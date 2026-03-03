@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% set title = "Edit Profile" %}
+{% block content %}
+<div class="card" style="max-width:640px;margin:auto;">
+    <h2>Edit Profile</h2>
+    {% if error %}
+        <div class="alert alert--error">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="{{ url_for('auth.profile_submit') }}">
+        <div class="form-group">
+            <label class="form-label">First Name</label>
+            <input class="form-input" name="first_name" value="{{ form.first_name.data }}" />
+            {% for e in form.first_name.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <input class="form-input" name="last_name" value="{{ form.last_name.data }}" />
+            {% for e in form.last_name.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" name="email" value="{{ form.email.data }}" />
+            {% for e in form.email.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input class="form-input" name="phone" value="{{ form.phone.data }}" />
+            {% for e in form.phone.errors %}<div class="form-error">{{ e }}</div>{% endfor %}
+        </div>
+
+        <button class="btn btn--primary" type="submit">Save</button>
+    </form>
+</div>
+{% endblock %}
