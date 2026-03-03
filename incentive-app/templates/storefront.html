@@ -96,4 +96,27 @@
         {% endfor %}
     </div>
 </div>
+
+<script>
+    const minSlider = document.getElementById('min_price');
+    const maxSlider = document.getElementById('max_price');
+    const minValue = document.getElementById('min_price_value');
+    const maxValue = document.getElementById('max_price_value');
+
+    minSlider.addEventListener('input', () => {
+        if (parseInt(minSlider.value) > parseInt(maxSlider.value)) {
+            maxSlider.value = minSlider.value;
+            maxValue.innerText = maxSlider.value;
+        }
+        minValue.innerText = minSlider.value;
+    });
+
+    maxSlider.addEventListener('input', () => {
+        if (parseInt(maxSlider.value) < parseInt(minSlider.value)) {
+            minSlider.value = maxSlider.value;
+            minValue.innerText = minSlider.value;
+        }
+        maxValue.innerText = maxSlider.value;
+    });
+</script>
 {% endblock %}

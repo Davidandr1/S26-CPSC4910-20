@@ -329,6 +329,10 @@ def storefront():
     max_price = request.args.get("max_price")
     sort_by = request.args.get("sort_by", "asc")
 
+    if min_price is not None and max_price is not None:
+        if min_price > max_price:
+            max_price = min_price
+
     filters = []
     params = {"sid": session.get("sponsor_id")}
 
