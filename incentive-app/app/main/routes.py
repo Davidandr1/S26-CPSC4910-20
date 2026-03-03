@@ -252,6 +252,47 @@ def storefront():
     categories = []
     cart_count = 0
 
+    search = request.args.get("search")
+    category_filter = request.args.get("category")
+    min_price = request.args.get("min_price")
+    max_price = request.args.get("max_price")
+    sort_by = request.args.get("sort_by", "asc")
+
+    filters = []
+    params = {"sid": session.get("sponsor_id")}
+
+    if search:
+        filters.append("Item_Name LIKE :search")
+        params["search"] = f"%{search}%"
+
+    if category_filter:
+        filters.append("Category_Name = :category")
+        params["category"] = category_filter
+    if min_price:
+        filters.append("Prod_UnitPrice >= :min_price")
+        params["min_price"] = min_price
+    if max_price:
+        filters.append("Prod_UnitPrice <= :max_price")
+        params["max_price"] = max_price
+    order_clause = "ORDER BY Prod_UnitPrice ASC" if sort_by == "asc" else "ORDER BY Prod_UnitPrice DESC"
+    filter_statement = " AND ".join(filters) if filters else "1=1"
+
+    with engine.connect() as conn:
+        products = conn.execute(text(f"""
+            SELECT Item_ID, Item_Name, Prod_Description, Prod_UnitPrice
+            FROM INVENTORY
+            WHERE Sponsor_ID = :sid AND Is_Available = TRUE AND {filter_statement} {order_clause}
+        """), params).fetchall()
+
+        categories = conn.execute(text("""
+            SELECT DISTINCT Prod_Category FROM INVENTORY WHERE Sponsor_ID = :sid
+        """), {"sid": session.get("sponsor_id")}).fetchall()
+
+        max_point_cost = conn.execute(text("""
+            SELECT MAX(Prod_UnitPrice) AS max_price FROM INVENTORY WHERE Sponsor_ID = :sid AND Is_Available = TRUE
+        """), {"sid": session.get("sponsor_id")}).fetchone().max_price or 1000
+
+
     return render_template(
         "storefront.html",
         nav_pages=NAV_PAGES,
@@ -259,7 +300,7 @@ def storefront():
         user=user,
         products=products,
         categories=categories,
-        cart_count=cart_count
+        max_point_cost=max_point_cost
     )
 
 

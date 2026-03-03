@@ -33,6 +33,22 @@
             <option value="desc">Sort by Points (High → Low)</option>
         </select>
 
+        <div class="price-slider">
+            <label class="price-label">Points:</label>
+            <input type="range" id="min_price" name="min_price" min="0" max="{{ max_point_cost }}" step="1" 
+            value="{{ request.args.get('min_price', 0) }}" oninput="document.getElementById('min_price_value').innerText = this.value">
+
+            <input type="range" id="max_price" name="max_price" min="0" max="{{ max_point_cost }}" step="1" 
+            value="{{ request.args.get('max_price', max_point_cost) }}" oninput="document.getElementById('max_price_value').innerText = this.value">
+
+            <span class="price-value">
+                <span id="min_price_value">{{ request.args.get('min_price', 0) }}</span> - 
+                <span id="max_price_value">{{ request.args.get('max_price', max_point_cost) }}</span> pts
+            </span>
+        </div>
+
+        <button class="btn btn-secondary">Apply Filters</button>
+
         <a href="/cart" class="cart-button">
             🛒 Cart ({{ cart_count }})
         </a>

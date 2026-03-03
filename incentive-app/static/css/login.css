@@ -244,6 +244,29 @@ main {
     flex-wrap: wrap;
 }
 
+.price-slider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 250px;
+}
+
+.price-label {
+    font-size: 0.9rem;
+    color: #ffffff;
+    white-space: nowrap;
+}
+
+.price-slider input[type="range"] {
+   width: 90px;
+}
+
+.price-value {
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+}
+
 .search-input,
 .filter-select {
     padding: 10px 14px;
