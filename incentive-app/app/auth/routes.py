@@ -147,12 +147,15 @@ def change_password_submit():
 
     try:
         with engine.begin() as conn:
-            row = conn.execute(text("SELECT Encrypted_Password FROM USERS WHERE User_ID = :uid"), {"uid": user_id}).fetchone()
+            row = conn.execute(text("SELECT Encrypted_Password, Prev_Password FROM USERS WHERE User_ID = :uid"), {"uid": user_id}).fetchone()
             if not row or not row.Encrypted_Password or not check_password_hash(row.Encrypted_Password, current):
                 return render_template("change_password.html", form=form, error="Current password is incorrect.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
 
+            if check_password_hash(row.Encrypted_Password, new_pw) or (row.Prev_Password and check_password_hash(row.Prev_Password, new_pw)):
+                return render_template("change_password.html", form=form, error="New password cannot be the same as the current or previous password.", nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
             new_hash = generate_password_hash(new_pw)
-            conn.execute(text("UPDATE USERS SET Encrypted_Password = :pw, Session_Version = Session_Version + 1 WHERE User_ID = :uid"), {"pw": new_hash, "uid": user_id})
+
+            conn.execute(text("UPDATE USERS SET Encrypted_Password = :pw, Prev_Password = :prev_pw, Session_Version = Session_Version + 1 WHERE User_ID = :uid"), {"pw": new_hash, "prev_pw": row.Encrypted_Password, "uid": user_id})
             new_version = conn.execute(text("SELECT Session_Version FROM USERS WHERE User_ID = :uid"), {"uid": user_id}).fetchone().Session_Version
             session["session_version"] = new_version
     except Exception:
