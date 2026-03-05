@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from sqlalchemy import text
 from app.db import engine
+from app.services.ebay_service import EBayService
+from app.services.inventory_service import InventoryService
 
 main_bp = Blueprint("main", __name__)
 
@@ -410,6 +412,30 @@ def sponsor_product_detail(item_id):
 
     return render_template("sponsorProductDetail.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), product=product)
 
+@main_bp.route("/sponsor/products/<int:item_id>", methods=["DELETE"])
+def api_delete_product(item_id):
+
+    r = require_role("Sponsor")
+    if r:
+        return {"error": "Unauthorized"}, 401
+    
+    sponsor_id = session.get("sponsor_id")
+    if not sponsor_id:
+        return {"error": "Sponsor ID not found"}, 400
+    
+    try:
+        deleted = InventoryService.delete_product(sponsor_id, item_id)
+        
+        if not deleted:
+            return {"error": "Product not found or does not belong to this sponsor"}, 404
+        
+        return {
+            "success": True,
+            "message": f"Product {item_id} deleted successfully"
+        }, 200
+        
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 @main_bp.post("/sponsor/products/<int:item_id>/available")
 def sponsor_product_availability(item_id):
