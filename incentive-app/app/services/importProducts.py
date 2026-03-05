@@ -12,6 +12,19 @@ class ProductAPIService:
         client_secret = os.environ.get("EBAY_CLIENT_SECRET", "")
         credentials = f"{client_id}:{client_secret}"
         self.encoded_credentials = base64.b64encode(credentials.encode()).decode()
+        self.token = self._get_oauth_token()
+
+    def _get_oauth_token(self) -> str:
+        try:
+            response = requests.post(
+                f"{self.base_url}/identity/v1/oauth2/token",
+                headers={"Authorization": f"Basic {self.encoded_credentials}"},
+                data={"grant_type": "client_credentials", "scope": "https://api.ebay.com/oauth/api_scope"}
+            )
+            response.raise_for_status()
+            return response.json().get("access_token", "")
+        except requests.RequestException as e:
+            raise Exception(f"Failed to obtain OAuth token: {str(e)}")
 
     def get_products(self, query: str, limit: int = 10) -> List[Dict]:
         try:
@@ -21,7 +34,9 @@ class ProductAPIService:
                 headers=self._get_headers()
             )
             response.raise_for_status()
-            return response.json().get("itemSummaries", [])
+            items = response.json().get("itemSummaries", [])
+            # Filter out adult-only items
+            return [item for item in items if not item.get("adultsOnly", False)]
         except requests.RequestException as e:
             #we don't wanna return this b/c it may give away errors to bad actors
             raise Exception(f"API Error: {str(e)}")
