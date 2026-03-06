@@ -483,7 +483,8 @@ def cart_checkout():
         ), {"uid": uid}).fetchone()
 
         if driver.User_Points < total_cost:
-            return redirect(url_for("main.cart_page"))
+            return render_template("cart.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), 
+                                   error="You do not have enough points to complete this purchase.", cart_items=cart_items, total_cost=total_cost)
 
         # Create the order
         result = conn.execute(text("""
