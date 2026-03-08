@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% set title = "Sponsor - Events" %}
+{% block content %}
+<div class="card">
+  <h3>Manage Events</h3>
+  <p>Create reusable point events and delete existing ones.</p>
+
+  <ul class="list-group">
+    {% for e in events %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>{{ e.Event_Name }} <small>({{ e.Event_Points }})</small></div>
+        <form method="post" action="{{ url_for('main.sponsor_delete_event') }}" style="margin:0;">
+          <input type="hidden" name="event_id" value="{{ e.Event_ID }}">
+          <button class="btn btn-danger btn-sm">Delete</button>
+        </form>
+      </li>
+    {% else %}
+      <li class="list-group-item"><em>No events yet.</em></li>
+    {% endfor %}
+  </ul>
+
+  <hr>
+  <h5>Create Event</h5>
+  <form method="post" action="{{ url_for('main.sponsor_create_event') }}">
+    <div class="form-group">
+      <label for="event_name">Name</label>
+      <input id="event_name" name="event_name" class="form-control">
+    </div>
+    <div class="form-group">
+      <label for="event_points">Points</label>
+      <input id="event_points" name="event_points" type="number" class="form-control" value="0">
+    </div>
+    <div style="margin-top:.5rem;display:flex;gap:8px;">
+      <button class="btn btn-success" type="submit">Create</button>
+      <a class="btn btn-link" href="{{ url_for('main.sponsor_home') }}">Back</a>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

@@ -168,16 +168,205 @@ def sponsor_home():
         sponsor = conn.execute(text("""
             SELECT Sponsor_Name FROM SPONSORS WHERE Sponsor_ID = :sid
         """), {"sid": sponsor_id}).fetchone()
+
     drivers = []
+    events = []
     with engine.connect() as conn:
         drivers = conn.execute(text("""
-            SELECT d.User_ID, u.User_FName, u.User_LName, u.User_Email, u.User_Phone_Num
+            SELECT d.User_ID, d.User_Points, u.User_FName, u.User_LName, u.User_Email, u.User_Phone_Num
             FROM DRIVERS d
             JOIN USERS u ON d.User_ID = u.User_ID
             WHERE d.Sponsor_ID = :sid AND d.Is_Active = TRUE
         """), {"sid": sponsor_id}).fetchall()
 
-    return render_template("sponsorHome.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), drivers=drivers, sponsor=sponsor)
+        # Load sponsor-created point events (presets)
+        events = conn.execute(text("""
+            SELECT Event_ID, Event_Name, Event_Points, Created_At
+            FROM POINT_EVENTS
+            WHERE Sponsor_ID = :sid
+            ORDER BY Created_At DESC
+        """), {"sid": sponsor_id}).fetchall()
+
+    return render_template("sponsorHome.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), drivers=drivers, sponsor=sponsor, events=events)
+
+
+@main_bp.get('/sponsor/points')
+def sponsor_points_page():
+    r = require_role('Sponsor')
+    if r:
+        return r
+    sponsor_id = session.get('sponsor_id')
+    if not sponsor_id:
+        return "Sponsor ID not found in session", 400
+    with engine.connect() as conn:
+        drivers = conn.execute(text("""
+            SELECT d.User_ID, d.User_Points, u.User_FName, u.User_LName, u.User_Email
+            FROM DRIVERS d
+            JOIN USERS u ON d.User_ID = u.User_ID
+            WHERE d.Sponsor_ID = :sid AND d.Is_Active = TRUE
+        """), {"sid": sponsor_id}).fetchall()
+
+        events = conn.execute(text("SELECT Event_ID, Event_Name, Event_Points FROM POINT_EVENTS WHERE Sponsor_ID = :sid ORDER BY Created_At DESC"), {"sid": sponsor_id}).fetchall()
+
+    return render_template('sponsorPoints.html', nav_pages=NAV_PAGES, logged_in=is_logged_in(), drivers=drivers, events=events)
+
+
+@main_bp.get('/sponsor/events')
+def sponsor_events_page():
+    r = require_role('Sponsor')
+    if r:
+        return r
+    sponsor_id = session.get('sponsor_id')
+    if not sponsor_id:
+        return "Sponsor ID not found in session", 400
+    with engine.connect() as conn:
+        events = conn.execute(text("SELECT Event_ID, Event_Name, Event_Points, Created_At FROM POINT_EVENTS WHERE Sponsor_ID = :sid ORDER BY Created_At DESC"), {"sid": sponsor_id}).fetchall()
+    return render_template('sponsorEvents.html', nav_pages=NAV_PAGES, logged_in=is_logged_in(), events=events)
+
+
+@main_bp.post('/sponsor/events/create')
+def sponsor_create_event():
+    r = require_role('Sponsor')
+    if r:
+        return r
+    sponsor_id = session.get('sponsor_id')
+    if not sponsor_id:
+        return "Sponsor ID not found in session", 400
+
+    name = request.form.get('event_name')
+    points = request.form.get('event_points')
+    # Validation
+    try:
+        points = int(points)
+    except Exception:
+        flash('Event points must be an integer.', 'error')
+        return redirect(url_for('main.sponsor_home'))
+
+    if not name or points == 0:
+        flash('Event name is required and points cannot be zero.', 'error')
+        return redirect(url_for('main.sponsor_home'))
+
+    with engine.begin() as conn:
+        conn.execute(text("""
+            INSERT INTO POINT_EVENTS (Sponsor_ID, Event_Name, Event_Points, Created_At)
+            VALUES (:sid, :name, :pts, CURRENT_TIMESTAMP)
+        """), {"sid": sponsor_id, "name": name, "pts": points})
+
+    flash('Event created successfully.', 'success')
+    return redirect(url_for('main.sponsor_home'))
+
+
+@main_bp.post('/sponsor/events/delete')
+def sponsor_delete_event():
+    r = require_role('Sponsor')
+    if r:
+        return r
+    sponsor_id = session.get('sponsor_id')
+    event_id = request.form.get('event_id')
+    if not event_id:
+        return redirect(url_for('main.sponsor_home'))
+
+    with engine.begin() as conn:
+        # Ensure event belongs to sponsor
+        row = conn.execute(text("SELECT Sponsor_ID FROM POINT_EVENTS WHERE Event_ID = :eid"), {"eid": event_id}).fetchone()
+        if not row or row.Sponsor_ID != sponsor_id:
+            flash('Event not found or forbidden.', 'error')
+            return redirect(url_for('main.sponsor_home'))
+        conn.execute(text("DELETE FROM POINT_EVENTS WHERE Event_ID = :eid"), {"eid": event_id})
+
+    flash('Event deleted.', 'success')
+    return redirect(url_for('main.sponsor_home'))
+
+
+@main_bp.post('/sponsor/points/adjust')
+def sponsor_adjust_points():
+    r = require_role('Sponsor')
+    if r:
+        return r
+    sponsor_id = session.get('sponsor_id')
+    if not sponsor_id:
+        return "Sponsor ID not found in session", 400
+
+    # driver_ids may be passed as multiple form values 'driver_id'
+    driver_ids = request.form.getlist('driver_id')
+    # fallback to comma separated
+    if not driver_ids:
+        raw = request.form.get('driver_ids')
+        if raw:
+            driver_ids = [d.strip() for d in raw.split(',') if d.strip()]
+
+    # If an event was selected, use its points and default reason
+    event_id = request.form.get('event_id')
+    event = None
+    if event_id:
+        with engine.connect() as conn:
+            event = conn.execute(text("SELECT Event_ID, Event_Name, Event_Points, Sponsor_ID FROM POINT_EVENTS WHERE Event_ID = :eid"), {"eid": event_id}).fetchone()
+        if not event:
+            flash('Selected event not found.', 'error')
+            return redirect(url_for('main.sponsor_home'))
+        if event.Sponsor_ID != sponsor_id:
+            flash('Selected event does not belong to your sponsor account.', 'error')
+            return redirect(url_for('main.sponsor_home'))
+
+    # Validate points (use event points if provided)
+    pts = None
+    if event:
+        pts = int(event.Event_Points)
+
+    if pts is None:
+        pts_raw = request.form.get('points', None)
+        if pts_raw is None:
+            flash('Points value is required.', 'error')
+            return redirect(url_for('main.sponsor_home'))
+        try:
+            pts = int(pts_raw)
+        except Exception:
+            flash('Points must be an integer.', 'error')
+            return redirect(url_for('main.sponsor_home'))
+
+    reason = request.form.get('reason') or (event.Event_Name if event else 'Sponsor adjustment')
+    if not driver_ids:
+        flash('No drivers selected.', 'error')
+        return redirect(url_for('main.sponsor_home'))
+    if pts == 0:
+        flash('Points cannot be zero.', 'error')
+        return redirect(url_for('main.sponsor_home'))
+
+    updated = 0
+    skipped_insufficient = 0
+    with engine.begin() as conn:
+        for did in driver_ids:
+            # verify driver belongs to sponsor
+            drv = conn.execute(text("SELECT User_ID FROM DRIVERS WHERE User_ID = :did AND Sponsor_ID = :sid"), {"did": did, "sid": sponsor_id}).fetchone()
+            if not drv:
+                continue
+
+            # Check current points to avoid negative balance
+            if pts < 0:
+                cur = conn.execute(text("SELECT User_Points FROM DRIVERS WHERE User_ID = :did"), {"did": did}).fetchone()
+                cur_points = cur.User_Points if cur and hasattr(cur, 'User_Points') else 0
+                if cur_points + pts < 0:
+                    # Skip this driver to prevent negative balance
+                    skipped_insufficient += 1
+                    continue
+
+            # Update points (no transaction logging here)
+            conn.execute(text("UPDATE DRIVERS SET User_Points = User_Points + :pts WHERE USER_ID = :did"), {"pts": pts, "did": did})
+            updated += 1
+
+    if updated == 0:
+        msg = 'No drivers were updated; verify selection and sponsor association.'
+        if skipped_insufficient:
+            msg += f' {skipped_insufficient} driver(s) skipped due to insufficient points.'
+        flash(msg, 'error')
+    else:
+        action = 'added to' if pts > 0 else 'removed from'
+        msg = f'{abs(pts)} points {action} {updated} driver(s).'
+        if skipped_insufficient:
+            msg += f' {skipped_insufficient} driver(s) skipped due to insufficient points.'
+        flash(msg, 'success')
+
+    return redirect(url_for('main.sponsor_home'))
 
 @main_bp.get("/sponsor/products")
 def sponsor_products():
