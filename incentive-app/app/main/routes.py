@@ -3,7 +3,7 @@ from sqlalchemy import text
 from app.db import engine
 from app.services.ebay_service import EBayService
 from app.services.inventory_service import InventoryService
-
+import os
 main_bp = Blueprint("main", __name__)
 
 NAV_PAGES = [
@@ -411,6 +411,92 @@ def sponsor_product_detail(item_id):
 
 
     return render_template("sponsorProductDetail.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), product=product)
+
+@main_bp.route("/sponsor/products/search", methods=["GET"])
+def api_search_products():
+    """
+    query params:
+    - q: search query (required)
+    - limit: max results (default 20)
+    """
+    r = require_role("Sponsor")
+    if r:
+        return {"error": "Unauthorized"}, 401
+    search_query = request.args.get("q", "").strip()
+    limit = int(request.args.get("limit", 20))
+    if not search_query:
+        return {"error": "Search query required"}, 400
+    
+    try:
+        ebay = EBayService(
+            client_id=os.environ.get("EBAY_CLIENT_ID"),
+            client_secret=os.environ.get("EBAY_CLIENT_SECRET"),
+        )
+        products = ebay.search_products(search_query, limit=min(limit, 50))
+        return {
+            "success": True,
+            "count": len(products),
+            "products": products
+        }, 200
+        
+    except Exception as e:
+        return {"error": str(e)}, 500
+    
+@main_bp.route("/api/sponsor/products", methods=["POST"])
+def api_add_product():
+    """ request body:
+        {
+        "external_id": "ebay_item_id",
+        "name": "Product Name",
+        "description": "Product description",
+        "price": 99.99,
+        "image": "http://image-url.jpg",
+        "quantity": 50
+    }
+    """
+    r = require_role("Sponsor")
+    if r:
+        return {"error": "Unauthorized"}, 401
+    sponsor_id = session.get("sponsor_id")
+    if not sponsor_id:
+        return {"error": "Sponsor ID not found"}, 400
+    data = request.get_json()
+    if not data:
+        return {"error": "Invalid JSON body"}, 400
+    r = require_role("Sponsor")
+    if r:
+        return {"error": "Unauthorized"}, 401
+    sponsor_id = session.get("sponsor_id")
+    if not sponsor_id:
+        return {"error": "Sponsor ID not found"}, 400
+    data = request.get_json()
+    if not data:
+        return {"error": "Invalid JSON body"}, 400
+    required_fields = ["external_id", "name", "price"]
+    for field in required_fields:
+        if field not in data:
+            return {"error": f"Missing required field: {field}"}, 400
+    
+    try:
+        product_data = {
+            "external_id": data["external_id"],
+            "name": data["name"],
+            "description": data.get("description", ""),
+            "price": float(data["price"]),
+            "image": data.get("image"),
+            "quantity": data.get("quantity", 50)
+        }
+        item_id = InventoryService.add_product(sponsor_id, product_data)
+        return {
+            "success": True,
+            "message": "Product added successfully",
+            "item_id": item_id
+        }, 201
+        
+    except ValueError as e:
+        return {"error": str(e)}, 409
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 @main_bp.route("/sponsor/products/<int:item_id>", methods=["DELETE"])
 def api_delete_product(item_id):
