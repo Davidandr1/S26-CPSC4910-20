@@ -288,6 +288,10 @@ def sponsor_adjust_points():
     sponsor_id = session.get('sponsor_id')
     if not sponsor_id:
         return "Sponsor ID not found in session", 400
+    
+    current_user = session.get('user_id')
+    if not current_user:
+        return "User ID not found in session", 400
 
     # driver_ids may be passed as multiple form values 'driver_id'
     driver_ids = request.form.getlist('driver_id')
@@ -326,7 +330,21 @@ def sponsor_adjust_points():
             flash('Points must be an integer.', 'error')
             return redirect(url_for('main.sponsor_home'))
 
-    reason = request.form.get('reason') or (event.Event_Name if event else 'Sponsor adjustment')
+    event_reason = (event.Event_Name if event else '').strip()
+    type_reason = request.form.get('reason', '').strip()
+    reason = ""
+
+    if not event_reason and not type_reason:
+        flash('A reason for the point adjustment is required.', 'error')
+        return redirect(url_for('main.sponsor_home'))
+    elif type_reason and event_reason:
+        reason = event_reason
+    elif event_reason and not type_reason:
+        reason = event_reason
+    else:
+        reason = type_reason
+        
+
     if not driver_ids:
         flash('No drivers selected.', 'error')
         return redirect(url_for('main.sponsor_home'))
@@ -355,6 +373,9 @@ def sponsor_adjust_points():
             # Update points (no transaction logging here)
             conn.execute(text("UPDATE DRIVERS SET User_Points = User_Points + :pts WHERE USER_ID = :did"), {"pts": pts, "did": did})
             updated += 1
+
+            conn.execute(text("""INSERT INTO POINT_TRANSACTIONS (Driver_ID, Actor_User_ID, Points_Changed, Reason, Transaction_Time) VALUES (:did, :actor_id, :pts, :reason, CURRENT_TIMESTAMP)"""),
+                            {"did": did, "actor_id": current_user, "pts": pts, "reason": reason})
 
     if updated == 0:
         msg = 'No drivers were updated; verify selection and sponsor association.'
