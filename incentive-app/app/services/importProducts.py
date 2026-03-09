@@ -78,6 +78,6 @@ class ProductAPIService:
 
     def _get_headers(self) -> Dict:
         return {
-            "Authorization": f"Basic {self.encoded_credentials}",
+            "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json"
         }

@@ -57,3 +57,15 @@ class InventoryService:
                 return result.lastrowid
         except Exception as e:
             raise Exception(f"Error adding product: {str(e)}")
+        
+
+    def delete_product(self, sponsor_id: int, product_id: int) -> bool:
+        try:
+            with engine.begin() as conn:
+                result = conn.execute(
+                    text("DELETE FROM INVENTORY WHERE Item_ID = :pid AND Sponsor_ID = :sid"),
+                    {"pid": product_id, "sid": sponsor_id}
+                )
+                return result.rowcount > 0
+        except Exception as e:
+            raise Exception(f"Error deleting product: {str(e)}")

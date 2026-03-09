@@ -449,11 +449,11 @@ def api_search_products():
         return {"error": "Search query required"}, 400
     
     try:
-        ebay = EBayService(
+        ebay = ProductAPIService(
             client_id=os.environ.get("EBAY_CLIENT_ID"),
             client_secret=os.environ.get("EBAY_CLIENT_SECRET"),
         )
-        products = ebay.search_products(search_query, limit=min(limit, 50))
+        products = ebay.get_products(search_query, limit=min(limit, 50))
         return {
             "success": True,
             "count": len(products),
@@ -475,15 +475,6 @@ def api_add_product():
         "quantity": 50
     }
     """
-    r = require_role("Sponsor")
-    if r:
-        return {"error": "Unauthorized"}, 401
-    sponsor_id = session.get("sponsor_id")
-    if not sponsor_id:
-        return {"error": "Sponsor ID not found"}, 400
-    data = request.get_json()
-    if not data:
-        return {"error": "Invalid JSON body"}, 400
     r = require_role("Sponsor")
     if r:
         return {"error": "Unauthorized"}, 401
