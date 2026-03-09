@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from sqlalchemy import text
 from app.db import engine
-from app.services.ebay_service import EBayService
-from app.services.inventory_service import InventoryService
+from app.services.importProducts import ProductAPIService
+from app.services.inventoryService import InventoryService
 import os
 main_bp = Blueprint("main", __name__)
 

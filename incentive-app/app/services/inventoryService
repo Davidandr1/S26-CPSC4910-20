@@ -41,7 +41,7 @@ class InventoryService:
                         INSERT INTO INVENTORY 
                         (Prod_SKU, Item_Name, Prod_Description, Prod_Quantity, 
                          Prod_UnitPrice, Sponsor_ID, Product_Image_URL, External_Product_ID, Point_Value)
-                        VALUES (:sku, :name, :desc, :price, :sid, :img_url, :ext_id, :pts)
+                        VALUES (:sku, :name, :desc, 100, :price, :sid, :img_url, :ext_id, :pts)
                     """),
                     {
                         "sku": product_data.get("external_id"),
