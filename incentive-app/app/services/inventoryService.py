@@ -34,8 +34,10 @@ class InventoryService:
                     raise ValueError("Sponsor not found")
                 
                 # Convert price to points
-                point_value = int(product_data["price"] / sponsor.Sponsor_PointConversion)
-                
+                conversion_rate = float(sponsor.Sponsor_PointConversion or 0)
+                formatted_price = float(product_data["price"])
+                point_value = int(formatted_price / conversion_rate) if conversion_rate else 0
+
                 result = conn.execute(
                     text("""
                         INSERT INTO INVENTORY 
