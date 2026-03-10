@@ -455,7 +455,7 @@ def api_search_products():
         sponsor = conn.execute(text("SELECT Sponsor_PointConversion FROM SPONSORS WHERE Sponsor_ID = :sid"), {"sid": sponsor_id}).fetchone()
     if not sponsor:
         return {"error": "Sponsor not found"}, 404
-    conversion_rate = sponsor.Sponsor_PointConversion
+    conversion_rate = float(sponsor.Sponsor_PointConversion or 0)
     
     try:
         ebay = ProductAPIService()
