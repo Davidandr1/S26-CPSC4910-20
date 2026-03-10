@@ -10,7 +10,7 @@ class InventoryService:
             existing = conn.execute(
                 text("""
                     SELECT Item_ID FROM INVENTORY 
-                    WHERE Sponsor_ID = :sid AND External_Product_ID = :ext_id
+                    WHERE Sponsor_ID = :sid AND Prod_SKU = :ext_id
                 """),
                 {"sid": sponsor_id, "ext_id": external_product_id}
             ).fetchone()
@@ -40,8 +40,8 @@ class InventoryService:
                     text("""
                         INSERT INTO INVENTORY 
                         (Prod_SKU, Item_Name, Prod_Description, Prod_Quantity, 
-                         Prod_UnitPrice, Sponsor_ID, Product_Image_URL, External_Product_ID, Point_Value)
-                        VALUES (:sku, :name, :desc, 100, :price, :sid, :img_url, :ext_id, :pts)
+                         Prod_UnitPrice, Sponsor_ID, Product_Image_URL, Prod_Category, Point_Value)
+                        VALUES (:sku, :name, :desc, 100, :price, :sid, :img_url, :category, :point_value)
                     """),
                     {
                         "sku": product_data.get("external_id"),
@@ -50,8 +50,8 @@ class InventoryService:
                         "price": product_data["price"],
                         "sid": sponsor_id,
                         "img_url": product_data.get("image"),
-                        "ext_id": product_data["external_id"],
-                        "pts": point_value
+                        "category": product_data.get("category", ""),
+                        "point_value": point_value
                     }
                 )
                 return result.lastrowid
@@ -59,7 +59,8 @@ class InventoryService:
             raise Exception(f"Error adding product: {str(e)}")
         
 
-    def delete_product(self, sponsor_id: int, product_id: int) -> bool:
+    @staticmethod
+    def delete_product(sponsor_id: int, product_id: int) -> bool:
         try:
             with engine.begin() as conn:
                 result = conn.execute(

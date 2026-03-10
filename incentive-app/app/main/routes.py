@@ -448,16 +448,37 @@ def api_search_products():
     if not search_query:
         return {"error": "Search query required"}, 400
     
+    sponsor_id = session.get("sponsor_id")
+    if not sponsor_id:
+        return {"error": "Sponsor ID not found in session"}, 400
+    with engine.connect() as conn:
+        sponsor = conn.execute(text("SELECT Sponsor_PointConversion FROM SPONSORS WHERE Sponsor_ID = :sid"), {"sid": sponsor_id}).fetchone()
+    if not sponsor:
+        return {"error": "Sponsor not found"}, 404
+    conversion_rate = sponsor.Sponsor_PointConversion
+    
     try:
         ebay = ProductAPIService(
             client_id=os.environ.get("EBAY_CLIENT_ID"),
             client_secret=os.environ.get("EBAY_CLIENT_SECRET"),
         )
         products = ebay.get_products(search_query, limit=min(limit, 50))
+        items = []
+        for product in products:
+            categories = product.get("categories", [])
+            category_name = categories[0].get("categoryName") if categories else "Uncategorized"
+            items.append({
+                "external_id": product.get("itemId"),
+                "name": product.get("title"),
+                "description": product.get("condition", ""),
+                "category": category_name,
+                "price": float(product.get("price", {}).get("value", 0)),
+                "image": product.get("image", {}).get("imageUrl")
+            })
         return {
             "success": True,
-            "count": len(products),
-            "products": products
+            "count": len(items),
+            "products": items
         }, 200
         
     except Exception as e:

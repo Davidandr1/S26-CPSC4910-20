@@ -10,6 +10,8 @@ class ProductAPIService:
         self.base_url = os.environ.get("EBAY_API_BASE_URL", "https://api.ebay.com")
         client_id = os.environ.get("EBAY_CLIENT_ID", "")
         client_secret = os.environ.get("EBAY_CLIENT_SECRET", "")
+        if not client_id or not client_secret:
+            raise ValueError("eBay API credentials not set in environment variables")
         credentials = f"{client_id}:{client_secret}"
         self.encoded_credentials = base64.b64encode(credentials.encode()).decode()
         self.token = self._get_oauth_token()
@@ -19,7 +21,8 @@ class ProductAPIService:
             response = requests.post(
                 f"{self.base_url}/identity/v1/oauth2/token",
                 headers={"Authorization": f"Basic {self.encoded_credentials}"},
-                data={"grant_type": "client_credentials", "scope": "https://api.ebay.com/oauth/api_scope"}
+                data={"grant_type": "client_credentials", "scope": "https://api.ebay.com/oauth/api_scope"},
+                timeout = 30
             )
             response.raise_for_status()
             return response.json().get("access_token", "")
@@ -36,7 +39,7 @@ class ProductAPIService:
             response.raise_for_status()
             items = response.json().get("itemSummaries", [])
             # Filter out adult-only items
-            return [item for item in items if not item.get("adultsOnly", False)]
+            return [item for item in items if not item.get("adultOnly", False)]
         except requests.RequestException as e:
             #we don't wanna return this b/c it may give away errors to bad actors
             raise Exception(f"API Error: {str(e)}")

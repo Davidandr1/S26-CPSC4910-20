@@ -2,6 +2,26 @@
 {% set title = "Sponsor Inventory" %}
 {% block content %}
 
+
+
+
+<div class="card">
+    <h3>Import Product</h3>
+    <p>Search eBay for products to import into your catalog.</p>
+    <div> 
+        <label for="search_query">Search Query</label>
+        <input type="text" id="search_query" class="form-control" placeholder="Search for Products">
+    </div>
+    <div>
+        <label for="limit">Max Results</label>
+        <input type="number" id="limit" class="form-control" placeholder="Number of products to import" value="10" min="1" max="100">
+    </div>
+    <div>
+        <button class="btn btn-primary" id="search_btn" onclick="searchProducts()">Search</button>
+    </div>
+</div>
+
+
 <div class="card">
     <p>Products offered by {{ session.sponsor_name }}</p>
 
@@ -40,5 +60,95 @@
         </table>
     {% endif %}
 </div>
+
+<div id = "search_status" style="margin-top:16px;"></div>
+<div id="search_results" style="margin-top:16px;"></div>
+
+<script>
+   async function searchProducts() {
+        const query = document.getElementById('search_query').value.trim();
+        const limit = parseInt(document.getElementById('limit').value, 10);
+        const results = document.getElementById('search_results');
+        const status = document.getElementById('search_status');
+        if (!query) {
+            alert('Please enter a search query.');
+            return;
+        }
+        status.innerHTML = 'Searching...';
+
+        try{
+            const response = await fetch(`/sponsor/products/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(`Search failed: ${response.statusText}`);
+            }
+            if(!data.products || data.products.length === 0){
+                alert('No products found for the given query.');
+                return;
+            }
+
+            status.innerHTML = `Found ${data.products.length} products. Displaying results below.`;
+            let html = "";
+            // Clear previous results
+            results.innerHTML = '';
+            data.products.forEach((product) => {
+                const encodedProduct = encodeURIComponent(JSON.stringify(product));
+                html += `
+                    <div class="card mb-2">
+                        <div style ="display:flex;gap:16px;">
+                            <img src="${product.image }" alt="${product.name}" style="width:150px;height:150px;object-fit:cover;">
+                            <div>
+                                <h5>${product.name}</h5>
+                                <p>${product.description || 'No description available.'}</p>
+                                <p><strong>Category:</strong> ${product.category || 'N/A'}</p>
+                                <p><strong>Points:</strong> $${product.points}</p>
+                                <button class="btn btn-sm btn-primary" onclick="importProduct('${encodedProduct}')">Import</button>
+                            </div>
+                        </div>
+                    </div>
+                `;});
+            results.innerHTML = html;
+                }  
+        catch (error) {
+            console.error('Error searching products:', error);
+            alert('An error occurred while searching for products.');
+        }
+    }
+
+    async function importProduct(product) {
+        try {
+            const product = JSON.parse(decodeURIComponent(product));
+
+            const payload = {
+                external_id: product.sku,
+                name: product.name,
+                description: product.desc,
+                price: product.price,
+                category: product.category,
+                image: product.img_url,
+                point_value: product.point_value
+            };
+
+            const response = await fetch('/sponsor/products/import', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(`Import failed: ${data.error || response.statusText}`);
+            }
+            alert('Product imported successfully!');
+            window.location.reload();
+            
+
+        } catch (error) {
+            console.error('Error importing product:', error);
+            alert('An error occurred while importing the product.');
+        }
+    }
+</script>
 
 {% endblock %}
