@@ -34,7 +34,7 @@ class InventoryService:
                     raise ValueError("Sponsor not found")
                 
                 # Convert price to points
-                point_value = int(product_data["price"] * sponsor.Sponsor_PointConversion)
+                point_value = int(product_data["price"] / sponsor.Sponsor_PointConversion)
                 
                 result = conn.execute(
                     text("""

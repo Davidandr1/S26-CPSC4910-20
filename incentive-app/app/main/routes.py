@@ -463,7 +463,7 @@ def api_search_products():
         items = []
         for product in products:
             price = float(product.get("price", {}).get("value", 0) or 0)
-            points = int(price * conversion_rate)
+            points = int(price/conversion_rate)
             categories = product.get("categories", [])
             category_name = categories[0].get("categoryName") if categories else "Uncategorized"
             items.append({
