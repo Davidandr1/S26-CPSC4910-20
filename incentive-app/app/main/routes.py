@@ -612,6 +612,10 @@ def sponsor_point_conversion():
         conn.execute(text("""
             UPDATE SPONSORS SET Sponsor_PointConversion = :rate WHERE Sponsor_ID = :sid
         """), {"rate": new_rate, "sid": sponsor_id})
+
+        conn.execute(text("""
+            UPDATE INVENTORY SET Point_Value = ROUND(Prod_UnitPrice / :rate) WHERE Sponsor_ID = :sid
+        """), {"rate": new_rate, "sid": sponsor_id})
     
     flash("Point conversion rate updated successfully.", "success")
     return redirect(url_for("main.sponsor_home"))

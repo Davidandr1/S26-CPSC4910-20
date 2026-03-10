@@ -5,7 +5,8 @@
 
 
 <div class="card">
-    <h3>Point Conversion</h3>
+    <h3>Point Conversion </h3>
+    <p>Current: {{ sponsor.Sponsor_PointConversion}}</p>
     <p>Set how many points drivers earn per dollar spent on your products.</p>
     <form method="POST" action="{{ url_for('main.sponsor_point_conversion') }}" style="display:flex;gap:8px;align-items:center;">
         <div>
@@ -29,7 +30,7 @@
         <input type="number" id="limit" class="form-control" placeholder="Number of products to import" value="10" min="1" max="100">
     </div>
     <div>
-        <button class="btn btn-primary" id="search_btn" onclick="searchProducts()">Search</button>
+        <button type="button" class="btn btn-primary" id="search_btn" onclick="searchProducts()">Search</button>
     </div>
 </div>
 
