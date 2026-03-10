@@ -516,6 +516,7 @@ def api_add_product():
             "name": data["name"],
             "description": data.get("description", ""),
             "price": float(data["price"]),
+            "category": data.get("category", "Uncategorized"),
             "image": data.get("image"),
             "quantity": data.get("quantity", 50)
         }
