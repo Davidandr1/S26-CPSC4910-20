@@ -115,17 +115,17 @@
         }
     }
 
-    async function importProduct(product) {
+    async function importProduct(encodedProduct) {
         try {
-            const product = JSON.parse(decodeURIComponent(product));
+            const product = JSON.parse(decodeURIComponent(encodedProduct));
 
             const payload = {
-                external_id: product.sku,
+                external_id: product.external_id,
                 name: product.name,
-                description: product.desc,
+                description: product.description,
                 price: product.price,
                 category: product.category,
-                image: product.img_url,
+                image: product.image,
                 point_value: product.point_value
             };
 

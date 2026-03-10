@@ -458,10 +458,7 @@ def api_search_products():
     conversion_rate = sponsor.Sponsor_PointConversion
     
     try:
-        ebay = ProductAPIService(
-            client_id=os.environ.get("EBAY_CLIENT_ID"),
-            client_secret=os.environ.get("EBAY_CLIENT_SECRET"),
-        )
+        ebay = ProductAPIService()
         products = ebay.get_products(search_query, limit=min(limit, 50))
         items = []
         for product in products:
