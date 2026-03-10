@@ -48,6 +48,48 @@
     {% endif %}
 </div>
 
+<!-- ── LEADERBOARD ──────────────────────────────────────────────── -->
+<div class="leaderboard-card">
+    <div class="leaderboard-header">
+        <h3>Leaderboard</h3>
+        <span class="leaderboard-scope">Ranked within your sponsor group</span>
+    </div>
+
+    {% if leaderboard|length == 0 %}
+        <p class="leaderboard-empty">No drivers found for this sponsor.</p>
+    {% else %}
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th class="col-rank">Rank</th>
+                    <th>Driver</th>
+                    <th class="col-pts">Points</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for driver in leaderboard %}
+                <tr {% if driver.User_ID == session.user_id %}class="leaderboard-highlight"{% endif %}>
+                    <td class="col-rank">
+                        {% if loop.index == 1 %}
+                        {% elif loop.index == 2 %}
+                        {% elif loop.index == 3 %}
+                        {% else %}<span class="leaderboard-rank-num">{{ loop.index }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ driver.Username }}
+                        {% if driver.User_ID == session.user_id %}
+                            <span class="leaderboard-you-badge">You</span>
+                        {% endif %}
+                    </td>
+                    <td class="col-pts">{{ driver.User_Points }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+<!-- ── END LEADERBOARD ─────────────────────────────────────────── -->
 {% endblock %}
 
 {% block scripts %}
