@@ -43,6 +43,56 @@
         </div>
     {% endif %}
 </div>
+
+<!-- ── LEADERBOARD ──────────────────────────────────────────────── -->
+<div class="leaderboard-card">
+    <div class="leaderboard-header">
+        <h3>Driver Leaderboard</h3>
+        <span class="leaderboard-scope">{{ session.sponsor_name }} — ranked by points</span>
+    </div>
+
+    {% if drivers|length == 0 %}
+        <p class="leaderboard-empty">No drivers to rank yet.</p>
+    {% else %}
+        {% set sorted_drivers = drivers | sort(attribute='User_Points', reverse=True) %}
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th class="col-rank">Rank</th>
+                    <th>Driver</th>
+                    <th>Email</th>
+                    <th class="col-pts">Points</th>
+                    <th class="col-status">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for driver in sorted_drivers %}
+                <tr>
+                    <td class="col-rank">
+                        {% if loop.index == 1 %}
+                        {% elif loop.index == 2 %}
+                        {% elif loop.index == 3 %}
+                        {% else %}<span class="leaderboard-rank-num">{{ loop.index }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ driver.User_FName }} {{ driver.User_LName }}</td>
+                    <td style="font-size:13px;color:#94a3b8;">{{ driver.User_Email }}</td>
+                    <td class="col-pts">{{ driver.User_Points }}</td>
+                    <td class="col-status">
+                        {% if driver.Is_Active %}
+                            <span class="leaderboard-badge leaderboard-badge--active">Active</span>
+                        {% else %}
+                            <span class="leaderboard-badge leaderboard-badge--inactive">Inactive</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+<!-- ── END LEADERBOARD ─────────────────────────────────────────── -->
+
     <script>
         /* keep small helpers in case other pages need them */
         function applyEventPoints(sel){
