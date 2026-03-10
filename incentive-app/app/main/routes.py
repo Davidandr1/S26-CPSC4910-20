@@ -408,7 +408,10 @@ def sponsor_products():
             WHERE Sponsor_ID = :sid
         """), {"sid": sponsor_id}).fetchall()
 
-    return render_template("sponsorProducts.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), products=products)
+        sponsor = conn.execute(text("""
+                                    SELECT Sponsor_Name, Sponsor_PointConversion FROM SPONSORS WHERE Sponsor_ID = :sid
+                                """), {"sid": sponsor_id}).fetchone()
+    return render_template("sponsorProducts.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), products=products, sponsor=sponsor)
 
 @main_bp.get("/sponsor/products/<int:item_id>")
 def sponsor_product_detail(item_id):
@@ -581,6 +584,37 @@ def sponsor_product_availability(item_id):
             UPDATE INVENTORY SET Is_Available = :status WHERE Item_ID = :iid
         """), {"status": newStatus, "iid": item_id})
     return redirect(url_for("main.sponsor_products"))
+
+@main_bp.post("/sponsor/point-conversion")
+def sponsor_point_conversion():
+    r = require_role("Sponsor")
+    if r:
+        return r
+    
+    sponsor_id = session.get("sponsor_id")
+    if not sponsor_id:
+        return "Sponsor ID not found in session", 400
+    
+    new_rate = request.form.get("conversion_rate")
+    if not new_rate:
+        flash("Conversion rate is required.", "error")
+        return redirect(url_for("main.sponsor_home"))
+    
+    try:
+        new_rate = float(new_rate)
+        if new_rate <= 0:
+            raise ValueError
+    except ValueError:
+        flash("Conversion rate must be a positive number.", "error")
+        return redirect(url_for("main.sponsor_home"))
+    
+    with engine.begin() as conn:
+        conn.execute(text("""
+            UPDATE SPONSORS SET Sponsor_PointConversion = :rate WHERE Sponsor_ID = :sid
+        """), {"rate": new_rate, "sid": sponsor_id})
+    
+    flash("Point conversion rate updated successfully.", "success")
+    return redirect(url_for("main.sponsor_home"))
 
 @main_bp.get("/admin/home")
 def admin_home():

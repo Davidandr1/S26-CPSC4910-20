@@ -4,6 +4,18 @@
 
 
 
+<div class="card">
+    <h3>Point Conversion</h3>
+    <p>Set how many points drivers earn per dollar spent on your products.</p>
+    <form method="POST" action="{{ url_for('main.sponsor_point_conversion') }}" style="display:flex;gap:8px;align-items:center;">
+        <div>
+            <label for="conversion_rate">Conversion Rate (points per dollar)</label>
+            <input type="number" id="conversion_rate" name="conversion_rate" class="form-control" value="{{ conversion_rate }}" min="0" step="0.01">
+        </div>
+        <div style="margin-top:24px;">
+            <button type="submit" class="btn btn-primary">Update</button>
+        </div>
+</div>
 
 <div class="card">
     <h3>Import Product</h3>
