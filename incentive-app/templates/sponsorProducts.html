@@ -125,11 +125,10 @@
                 description: product.description,
                 price: product.price,
                 category: product.category,
-                image: product.image,
-                points: product.points
+                image: product.image
             };
 
-            const response = await fetch('/sponsor/products/import', {
+            const response = await fetch('/sponsor/products/products', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
