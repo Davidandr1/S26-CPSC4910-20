@@ -462,6 +462,8 @@ def api_search_products():
         products = ebay.get_products(search_query, limit=min(limit, 50))
         items = []
         for product in products:
+            price = float(product.get("price", {}).get("value", 0))
+            points = int(price * conversion_rate)
             categories = product.get("categories", [])
             category_name = categories[0].get("categoryName") if categories else "Uncategorized"
             items.append({
@@ -470,6 +472,7 @@ def api_search_products():
                 "description": product.get("condition", ""),
                 "category": category_name,
                 "price": float(product.get("price", {}).get("value", 0)),
+                "points": points,
                 "image": product.get("image", {}).get("imageUrl")
             })
         return {
