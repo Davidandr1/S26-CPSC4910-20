@@ -967,7 +967,7 @@ def application_details(app_id):
     if not app:
         return "Application not found", 404
 
-    if session["user_type"] == "Sponsor" and app.App_Sponsor_ID != session["sponsor_id"]:
+    if session["user_type"] == "Sponsor" and int(app.App_Sponsor_ID) != int(session["sponsor_id"]):
         return "Forbidden", 403
 
     return render_template(
@@ -989,7 +989,7 @@ def evaluate_applications(app_id):
                            {"aid": app_id}).fetchone()
         if not app:
             return "Application not found", 404
-        if session["user_type"] == "Sponsor" and app["App_Sponsor_ID"] != session["sponsor_id"]:
+        if session["user_type"] == "Sponsor" and int(app["App_Sponsor_ID"]) != int(session["sponsor_id"]):
             return "Forbidden", 403
         
         if decision == "Denied" and not reason:
