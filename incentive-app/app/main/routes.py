@@ -734,6 +734,7 @@ def storefront():
     filter_statement = " AND ".join(filters) if filters else "1=1"
 
     with engine.connect() as conn:
+        sponsorID = conn.execute(text("SELECT Sponsor_ID FROM DRIVERS WHERE User_ID = :uid"), {"uid": session["user_id"]}).fetchone().Sponsor_ID
         products = conn.execute(text(f"""
             SELECT Item_ID, Item_Name, Prod_Description, Prod_UnitPrice, Is_Available, Product_Image_URL, Point_Value, Prod_Category
             FROM INVENTORY
@@ -742,11 +743,11 @@ def storefront():
 
         categories = conn.execute(text("""
             SELECT DISTINCT Prod_Category FROM INVENTORY WHERE Sponsor_ID = :sid
-        """), {"sid": session.get("sponsor_id")}).fetchall()
+        """), {"sid": sponsorID}).fetchall()
 
         max_point_cost = conn.execute(text("""
             SELECT MAX(Prod_UnitPrice) AS max_price FROM INVENTORY WHERE Sponsor_ID = :sid AND Is_Available = TRUE
-        """), {"sid": session.get("sponsor_id")}).fetchone().max_price or 1000
+        """), {"sid": sponsorID}).fetchone().max_price or 1000
 
 
         points = conn.execute(text("""SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"""), {"uid": session["user_id"]}).fetchone()
