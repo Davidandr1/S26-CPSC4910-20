@@ -748,6 +748,9 @@ def storefront():
             SELECT MAX(Prod_UnitPrice) AS max_price FROM INVENTORY WHERE Sponsor_ID = :sid AND Is_Available = TRUE
         """), {"sid": session.get("sponsor_id")}).fetchone().max_price or 1000
 
+
+        points = conn.execute(text("""SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"""), {"uid": session["user_id"]}).fetchone()
+        user_points = points.User_Points if points and hasattr(points, 'User_Points') else 0
         row = conn.execute(text("""
             SELECT COALESCE(SUM(Quantity), 0) AS cnt
             FROM CART_ITEMS
@@ -761,6 +764,7 @@ def storefront():
         logged_in=is_logged_in(),
         user=user,
         products=products,
+        user_points=user_points,
         categories=categories,
         max_point_cost=max_point_cost,
         cart_count=cart_count
