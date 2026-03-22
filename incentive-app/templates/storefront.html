@@ -24,7 +24,7 @@
         <select class="filter-select">
             <option value="">All Categories</option>
             {% for category in categories %}
-                <option value="{{ category.id }}">{{ category.name }}</option>
+                <option value="{{ category.Prod_Category }}">{{ category.Prod_Category }}</option>
             {% endfor %}
         </select>
 
@@ -59,16 +59,18 @@
         {% for product in products %}
         <div class="product-card">
 
-            <img src="{{ product.image_url }}" class="product-img">
+            <img src="{{ product.Product_Image_URL }}" class="product-img">
 
             <div class="product-info">
-                <h3>{{ product.name }}</h3>
-                <p class="product-desc">{{ product.description }}</p>
+                <h3>{{ product.Item_Name }}</h3>
+                <p class="product-desc">{{ product.Prod_Description }}</p>
 
                 <div class="product-meta">
-                    <span class="points">{{ product.point_cost }} pts</span>
+                    <span class="points">{{ product.Point_Value }} pts</span>
 
-                    {% if product.stock > 0 %}
+                    {% if product.Is_Available %}
+
+                    {% if product.Prod_Quantity > 0 %}
                         <span class="in-stock">In Stock</span>
                     {% else %}
                         <span class="out-stock">Out of Stock</span>
@@ -76,12 +78,12 @@
                 </div>
 
                 <div class="product-actions">
-                    <a href="/product/{{ product.id }}" class="btn btn-secondary">
+                    <a href="/product/{{ product.Item_ID }}" class="btn btn-secondary">
                         Details
                     </a>
 
-                    {% if product.stock > 0 and user.points >= product.point_cost %}
-                        <form method="POST" action="/cart/add/{{ product.id }}">
+                    {% if product.stock > 0 and user.points >= product.Point_Value %}
+                        <form method="POST" action="/cart/add/{{ product.Item_ID }}" style="display:inline;">
                             <button class="btn btn-primary">Add to Cart</button>
                         </form>
                     {% else %}

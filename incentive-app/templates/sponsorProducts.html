@@ -19,6 +19,26 @@
 </div>
 
 <div class="card">
+    <form method="GET" action="{{ url_for('main.sponsor_products') }}" style="display:flex;gap:16px;align-items:center;">
+        <div>
+            <label for="categories">Filter by Category</label>
+            <select id="categories" name="categories" class="form-control" multiple>
+                {% for category in categories %}
+                    <option value="{{ category.Prod_Category }}" {% if category.Prod_Category in request.args.get('categories', '') %}selected{% endif %}>
+                        {{ category.Prod_Category }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="margin-top:24px;">
+            <button type="submit" class="btn btn-secondary">Apply Filters</button>
+            <a href="{{ url_for('main.sponsor_products') }}" class="btn btn-secondary">Clear Filters</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
     <h3>Import Product</h3>
     <p>Search eBay for products to import into your catalog.</p>
     <div> 
@@ -44,10 +64,13 @@
         <table class="table">
             <thead>
                 <tr>
+                    <th>Image</th>
                     <th>Product Name</th>
+                    <th>Category</th>
                     <th>Product Points</th>
                     <th>Quantity</th>
                     <th>Available</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -57,6 +80,7 @@
                         <img src="{{ product.Product_Image_URL }}" alt="{{ product.Item_Name }}" style="width:50px;height:50px;object-fit:cover;">
                     </td>
                     <td>{{ product.Item_Name }}</td>
+                    <td>{{ product.Prod_Category or 'N/A'}}</td>
                     <td>{{ product.Point_Value }}</td>
                     <td>{{ product.Prod_Quantity }}</td>
                     <td>

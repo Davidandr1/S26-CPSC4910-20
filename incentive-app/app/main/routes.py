@@ -400,18 +400,26 @@ def sponsor_products():
     sponsor_id = session.get("sponsor_id")
     if not sponsor_id:
         return "Sponsor ID not found in session", 400
+
+    categories = request.args.get("categories", "").strip()
     
     with engine.connect() as conn:
-        products = conn.execute(text("""
+        category_filter = "AND Prod_Category IN :cats" if categories else ""
+        products = conn.execute(text(f"""
             SELECT Item_ID, Item_Name, Prod_Description, Prod_Quantity, Prod_UnitPrice, Is_Available, Product_Image_URL, Point_Value
             FROM INVENTORY
-            WHERE Sponsor_ID = :sid
-        """), {"sid": sponsor_id}).fetchall()
+            WHERE Sponsor_ID = :sid {category_filter}
+        """), {"sid": sponsor_id, "cats": tuple(categories.split(",")) if categories else ()}).fetchall()
 
         sponsor = conn.execute(text("""
                                     SELECT Sponsor_Name, Sponsor_PointConversion FROM SPONSORS WHERE Sponsor_ID = :sid
                                 """), {"sid": sponsor_id}).fetchone()
-    return render_template("sponsorProducts.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), products=products, sponsor=sponsor)
+        
+        categories = conn.execute(text("""
+            SELECT DISTINCT Prod_Category FROM INVENTORY WHERE Sponsor_ID = :sid AND Prod_Category IS NOT NULL AND Prod_Category != ''
+        """), {"sid": sponsor_id}).fetchall()
+
+    return render_template("sponsorProducts.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), products=products, sponsor=sponsor, categories=categories)
 
 @main_bp.get("/sponsor/products/<int:item_id>")
 def sponsor_product_detail(item_id):
@@ -727,7 +735,7 @@ def storefront():
 
     with engine.connect() as conn:
         products = conn.execute(text(f"""
-            SELECT Item_ID, Item_Name, Prod_Description, Prod_UnitPrice
+            SELECT Item_ID, Item_Name, Prod_Description, Prod_UnitPrice, Is_Available, Product_Image_URL, Point_Value, Prod_Category
             FROM INVENTORY
             WHERE Sponsor_ID = :sid AND Is_Available = TRUE AND {filter_statement} {order_clause}
         """), params).fetchall()
