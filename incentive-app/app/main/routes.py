@@ -312,7 +312,7 @@ def sponsor_schedule_event():
     
    
     try:
-        scheduled_for = datetime.strptime(request.form.get('scheduled_for').strip(), '%Y-%m-%dT%H:%M')
+        scheduled_for = datetime.strptime(request.form.get('scheduled_time').strip(), '%Y-%m-%dT%H:%M')
     except ValueError:
         flash('Scheduled Time is Invalid', "error")
         return redirect(url_for("main.sponsor_events_page"))
