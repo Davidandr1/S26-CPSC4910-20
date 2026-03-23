@@ -46,7 +46,7 @@
       <select id="event_id" name="event_id" class="form-control" required>
         <option value="" disabled selected>Select an event</option>
         {% for e in events %}
-          <option value="{{ e.Event_ID }}">{{ e.Event_Name }} ({{ e.Event_Points }} points)</option>
+          <option value="{{ e.Event_ID }}" data-name="{{ e.Event_Name }}" data-points="{{ e.Event_Points }}"> {{ e.Event_Name }} ({{ e.Event_Points }} points)</option>
         {% endfor %}
       </select>
     </div>

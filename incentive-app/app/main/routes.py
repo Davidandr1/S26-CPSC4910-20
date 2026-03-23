@@ -224,8 +224,9 @@ def sponsor_events_page():
     if not sponsor_id:
         return "Sponsor ID not found in session", 400
     with engine.connect() as conn:
+        drivers = conn.execute(text("""SELECT User_ID, User_FName, User_LName FROM DRIVERS d JOIN USERS u ON d.User_ID = u.User_ID WHERE d.Sponsor_ID = :sid AND d.Is_Active = TRUE"""), {"sid": sponsor_id}).fetchall()
         events = conn.execute(text("SELECT Event_ID, Event_Name, Event_Points, Created_At FROM POINT_EVENTS WHERE Sponsor_ID = :sid ORDER BY Created_At DESC"), {"sid": sponsor_id}).fetchall()
-    return render_template('sponsorEvents.html', nav_pages=NAV_PAGES, logged_in=is_logged_in(), events=events)
+    return render_template('sponsorEvents.html', nav_pages=NAV_PAGES, logged_in=is_logged_in(), drivers=drivers, events=events)
 
 
 @main_bp.post('/sponsor/events/create')
