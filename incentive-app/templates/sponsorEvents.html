@@ -74,9 +74,9 @@
 <script>
   function confirmScheduleEvent() {
     const eventSelect = document.getElementById('event_id');
-    const selectedEvent = eventSelect.options[eventSelect.selectedIndex].text;
-    const eventName = selectedOption.getAttribute('data-name');
-    const points = selectedOption.getAttribute('data-points');
+    const selectedEvent = eventSelect.options[eventSelect.selectedIndex];
+    const eventName = selectedEvent.getAttribute('data-name');
+    const points = selectedEvent.getAttribute('data-points');
     const scheduledTime = document.getElementById('scheduled_time').value;
     const driverCheckboxes = document.querySelectorAll('input[name="driver_id"]:checked');
     

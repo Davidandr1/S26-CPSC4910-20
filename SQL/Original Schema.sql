@@ -149,5 +149,6 @@ CREATE TABLE SCHEDULED_POINT_EVENTS (
     Scheduled_Status ENUM('Scheduled', 'Processed', 'Failed', 'Cancelled') NOT NULL DEFAULT 'Scheduled',
     FOREIGN KEY (Sponsor_ID) REFERENCES SPONSORS(Sponsor_ID),
     FOREIGN KEY (Driver_ID) REFERENCES DRIVERS(User_ID),
-    FOREIGN KEY (Created_By) REFERENCES USERS(User_ID)
+    FOREIGN KEY (Created_By) REFERENCES USERS(User_ID),
+    FOREIGN KEY (Event_ID) REFERENCES POINT_EVENTS(Event_ID)
 )

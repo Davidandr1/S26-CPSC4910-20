@@ -292,11 +292,18 @@ def sponsor_schedule_event():
             return r2
     sponsor_id = session.get('sponsor_id')
     current_user = session.get('user_id')
+    event_name = None
 
     if not sponsor_id or not current_user:
         return "Sponsor ID or User ID not found in session", 400
     if not current_user:
         return "User ID not found in session", 400
+    
+    event_id = request.form.get('event_id')
+
+    if not event_id:
+        flash('Event ID is required to schedule.', 'error')
+        return redirect(url_for('main.sponsor_events_page'))
     
     driver_ids = request.form.getlist('driver_id')
     if not driver_ids:
@@ -322,7 +329,14 @@ def sponsor_schedule_event():
         flash('Scheduled time must be in the future.', 'error')
         return redirect(url_for('main.sponsor_events_page'))
     
-    created = ScheduledPointEventService.create_scheduled_events_bulk(sponsor_id, driver_ids, current_user, points, reason, scheduled_for)
+    with engine.connect() as conn:
+        event = conn.execute(text("SELECT Event_Name FROM POINT_EVENTS WHERE Event_ID = :eid AND Sponsor_ID = :sid"), {"eid": event_id, "sid": sponsor_id}).fetchone()
+        if not event:
+            flash('Selected event not found for your sponsor account.', 'error')
+            return redirect(url_for('main.sponsor_events_page'))
+        event_name = event.Event_Name
+    
+    created = ScheduledPointEventService.create_scheduled_events_bulk(sponsor_id, driver_ids, current_user, points, reason, scheduled_for, event_id, event_name)
 
     if created == 0:
         flash('No events were scheduled; verify driver selection.', 'error')
