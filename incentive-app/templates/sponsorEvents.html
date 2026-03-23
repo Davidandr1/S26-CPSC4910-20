@@ -40,7 +40,7 @@
 
 <div class="card" style="margin-top:20px;">
   <h3>Schedule Existing Event</h3>
-  <form method="POST" action="{{ url_for('main.schedule_point_event') }}" onsubmit="return confirmScheduleEvent();">
+  <form method="POST" action="{{ url_for('main.sponsor_schedule_event') }}" onsubmit="return confirmScheduleEvent();">
     <div class="form-group">
       <label for="event_id">Event</label>
       <select id="event_id" name="event_id" class="form-control" required>
