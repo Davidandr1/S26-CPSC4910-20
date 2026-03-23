@@ -329,7 +329,7 @@ def sponsor_schedule_event():
         flash(f'{created} event(s) scheduled successfully.', 'success')
     return redirect(url_for('main.sponsor_events_page'))
 
-@main_bp.get('sponsor/points/scheduled')
+@main_bp.get('/sponsor/points/scheduled')
 def sponsor_scheduled_points_page():
     r = require_role('Sponsor')
     if r:
@@ -367,7 +367,7 @@ def sponsor_cancel_scheduled_event():
         flash('Scheduled event cancelled successfully.', 'success')
     else:
         flash('Failed to cancel scheduled event. It may have already been processed or cancelled.', 'error')
-        
+
     return redirect(url_for('main.sponsor_scheduled_points_page'))
 
 
