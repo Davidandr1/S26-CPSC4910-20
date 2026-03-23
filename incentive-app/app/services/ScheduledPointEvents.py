@@ -63,7 +63,7 @@ class ScheduledPointEventService:
     @staticmethod
     def process_scheduled_events():
         processed = 0
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             now = datetime.now()
             events = conn.execute(text("""
                 SELECT Scheduled_Event_ID, Driver_ID, Sponsor_ID, Created_By, Points_Change, Event_Name, Reason
@@ -78,7 +78,7 @@ class ScheduledPointEventService:
                 if not current or current.Scheduled_Status != 'Scheduled':
                     continue
 
-                driver = conn.execute(text("""SELECT User_ID, User_Points FROM DRIVERS WHERE User_ID = :uid AND Sponsor_ID = :sid AND Is_Active = TRUE"""), {"uid": event.User_ID, "sid": event.Sponsor_ID}).fetchone()
+                driver = conn.execute(text("""SELECT User_ID, User_Points FROM DRIVERS WHERE User_ID = :uid AND Sponsor_ID = :sid AND Is_Active = TRUE"""), {"uid": event.Driver_ID, "sid": event.Sponsor_ID}).fetchone()
                 if not driver:
                     conn.execute(text("""UPDATE SCHEDULED_POINT_EVENTS SET Scheduled_Status = 'Failed', Processed_Time = :pt, Reason = 'Driver not found or inactive' WHERE Scheduled_Event_ID = :seid"""), {"pt": datetime.now(), "seid": event.Scheduled_Event_ID})
                     continue
