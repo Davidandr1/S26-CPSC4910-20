@@ -12,11 +12,11 @@ class ScheduledPointEventService:
     def create_scheduled_events(sponsor_id: int, driver_id: int, created_by: int, points: int, reason: str, 
                                 scheduled_time: datetime, event_id: int = None, event_name: str = None) -> int:
         with engine.begin() as conn:
-            driver = conn.execute(text("SELECT User_ID FROM DRIVERS WHERE Driver_ID = :did AND Sponsor_ID = :sid"), {"did": driver_id, "sid": sponsor_id}).fetchone()
+            driver = conn.execute(text("SELECT User_ID FROM DRIVERS WHERE User_ID = :did AND Sponsor_ID = :sid"), {"did": driver_id, "sid": sponsor_id}).fetchone()
             if not driver:
                 raise ValueError("Driver not found for this sponsor")
             
-            result = conn.execute(text("""INSERT INTO SCHEDULED_POINT_EVENTS (Sponsor_ID, Driver_ID, Created_By, Points, Reason, Scheduled_Time, Event_ID, Event_Name) VALUES (:sid, :did, :cb, :p, :r, :st, :eid, :en)"""), {
+            result = conn.execute(text("""INSERT INTO SCHEDULED_POINT_EVENTS (Sponsor_ID, Driver_ID, Created_By, Points_Change, Reason, Scheduled_Time, Event_ID, Event_Name) VALUES (:sid, :did, :cb, :p, :r, :st, :eid, :en)"""), {
                 "sid": sponsor_id,
                 "did": driver_id,
                 "cb": created_by,
@@ -29,7 +29,7 @@ class ScheduledPointEventService:
             return result.lastrowid
         
     @staticmethod
-    def create_scheduled_events_bulk(sponsor_id: list, driver_id: list, created_by: int, points: int, reason: str, 
+    def create_scheduled_events_bulk(sponsor_id: int, driver_id: list, created_by: int, points: int, reason: str, 
                                 scheduled_time: datetime, event_id: int = None, event_name: str = None) -> int:
         created = 0
         for driver_ids in driver_id:
@@ -56,9 +56,9 @@ class ScheduledPointEventService:
             if event.Scheduled_Status != 'Scheduled':
                 raise ValueError("Only scheduled events can be cancelled")
             
-            conn.execute(text("""UPDATE SCHEDULED_POINT_EVENTS SET Scheduled_Status = 'Cancelled', Processed_Time = :pt WHERE Scheduled_Event_ID = :seid"""), 
+            updated_event = conn.execute(text("""UPDATE SCHEDULED_POINT_EVENTS SET Scheduled_Status = 'Cancelled', Processed_Time = :pt WHERE Scheduled_Event_ID = :seid"""), 
                          {"pt": datetime.now(), "seid": event_id})
-            return event.rowcount > 0
+            return updated_event.rowcount > 0
 
     @staticmethod
     def process_scheduled_events():
@@ -66,7 +66,7 @@ class ScheduledPointEventService:
         with engine.connect() as conn:
             now = datetime.now()
             events = conn.execute(text("""
-                SELECT Event_ID, User_ID, Sponsor_ID, Points_Change, Event_Name, Scheduled_Time, Processed_Time, Reason
+                SELECT Scheduled_Event_ID, Driver_ID, Event_ID, Sponsor_ID, Created_By, Points_Change, Event_Name, Scheduled_Time, Processed_Time, Reason
                 FROM SCHEDULED_POINT_EVENTS 
                 WHERE Scheduled_Time <= :now AND Scheduled_Status = 'Scheduled'
                 ORDER BY Scheduled_Time ASC

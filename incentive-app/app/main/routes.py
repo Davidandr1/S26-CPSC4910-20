@@ -224,7 +224,7 @@ def sponsor_events_page():
     if not sponsor_id:
         return "Sponsor ID not found in session", 400
     with engine.connect() as conn:
-        drivers = conn.execute(text("""SELECT User_ID, User_FName, User_LName FROM DRIVERS d JOIN USERS u ON d.User_ID = u.User_ID WHERE d.Sponsor_ID = :sid AND d.Is_Active = TRUE"""), {"sid": sponsor_id}).fetchall()
+        drivers = conn.execute(text("""SELECT d.User_ID, User_FName, User_LName FROM DRIVERS d JOIN USERS u ON d.User_ID = u.User_ID WHERE d.Sponsor_ID = :sid AND d.Is_Active = TRUE"""), {"sid": sponsor_id}).fetchall()
         events = conn.execute(text("SELECT Event_ID, Event_Name, Event_Points, Created_At FROM POINT_EVENTS WHERE Sponsor_ID = :sid ORDER BY Created_At DESC"), {"sid": sponsor_id}).fetchall()
     return render_template('sponsorEvents.html', nav_pages=NAV_PAGES, logged_in=is_logged_in(), drivers=drivers, events=events)
 
@@ -310,33 +310,25 @@ def sponsor_schedule_event():
         flash('No drivers selected.', 'error')
         return redirect(url_for('main.sponsor_events_page'))
     
-    points_string = request.form.get('points', 0).strip()
+   
     try:
-        points = int(points_string)
-    except Exception:
-        flash('Points must be an integer.', 'error')
-        return redirect(url_for('main.sponsor_events_page'))
-    reason = request.form.get('reason', '').strip()
-    scheduled_for = datetime.strptime(request.form.get('scheduled_for').strip(), '%Y-%m-%dT%H:%M')
+        scheduled_for = datetime.strptime(request.form.get('scheduled_for').strip(), '%Y-%m-%dT%H:%M')
+    except ValueError:
+        flash('Scheduled Time is Invalid', "error")
+        return redirect(url_for("main.sponsor_events_page"))
 
-    if points == 0:
-        flash('Points cannot be zero.', 'error')
-        return redirect(url_for('main.sponsor_events_page'))
-    if not reason:
-        flash('Reason for point adjustment is required.', 'error')
-        return redirect(url_for('main.sponsor_events_page'))
     if scheduled_for < datetime.now():
         flash('Scheduled time must be in the future.', 'error')
         return redirect(url_for('main.sponsor_events_page'))
     
     with engine.connect() as conn:
-        event = conn.execute(text("SELECT Event_Name FROM POINT_EVENTS WHERE Event_ID = :eid AND Sponsor_ID = :sid"), {"eid": event_id, "sid": sponsor_id}).fetchone()
+        event = conn.execute(text("SELECT Event_Name, Event_ID, Event_Points FROM POINT_EVENTS WHERE Event_ID = :eid AND Sponsor_ID = :sid"), {"eid": event_id, "sid": sponsor_id}).fetchone()
         if not event:
             flash('Selected event not found for your sponsor account.', 'error')
             return redirect(url_for('main.sponsor_events_page'))
         event_name = event.Event_Name
     
-    created = ScheduledPointEventService.create_scheduled_events_bulk(sponsor_id, driver_ids, current_user, points, reason, scheduled_for, event_id, event_name)
+    created = ScheduledPointEventService.create_scheduled_events_bulk(sponsor_id, driver_ids, current_user, event.Event_Points, event_name, scheduled_for, event_id, event_name)
 
     if created == 0:
         flash('No events were scheduled; verify driver selection.', 'error')
