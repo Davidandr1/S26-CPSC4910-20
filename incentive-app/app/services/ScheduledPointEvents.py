@@ -66,7 +66,7 @@ class ScheduledPointEventService:
         with engine.connect() as conn:
             now = datetime.now()
             events = conn.execute(text("""
-                SELECT Scheduled_Event_ID, Driver_ID, Event_ID, Sponsor_ID, Created_By, Points_Change, Event_Name, Scheduled_Time, Processed_Time, Reason
+                SELECT Scheduled_Event_ID, Driver_ID, Sponsor_ID, Created_By, Points_Change, Event_Name, Reason
                 FROM SCHEDULED_POINT_EVENTS 
                 WHERE Scheduled_Time <= :now AND Scheduled_Status = 'Scheduled'
                 ORDER BY Scheduled_Time ASC
