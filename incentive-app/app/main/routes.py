@@ -220,9 +220,15 @@ def sponsor_events_page():
     r = require_role('Sponsor')
     if r:
         return r
+    try:
+        ScheduledPointEventService.process_scheduled_events()
+    except Exception as e:
+        print("Scheduled event processing failed:", e)
+        
     sponsor_id = session.get('sponsor_id')
     if not sponsor_id:
         return "Sponsor ID not found in session", 400
+    
     with engine.connect() as conn:
         drivers = conn.execute(text("""SELECT d.User_ID, User_FName, User_LName FROM DRIVERS d JOIN USERS u ON d.User_ID = u.User_ID WHERE d.Sponsor_ID = :sid AND d.Is_Active = TRUE"""), {"sid": sponsor_id}).fetchall()
         events = conn.execute(text("SELECT Event_ID, Event_Name, Event_Points, Created_At FROM POINT_EVENTS WHERE Sponsor_ID = :sid ORDER BY Created_At DESC"), {"sid": sponsor_id}).fetchall()
