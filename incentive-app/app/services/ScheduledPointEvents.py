@@ -87,7 +87,7 @@ class ScheduledPointEventService:
                     conn.execute(text("""UPDATE SCHEDULED_POINT_EVENTS SET Scheduled_Status = 'Failed', Processed_Time = :pt, Reason = 'Insufficient points' WHERE Scheduled_Event_ID = :seid"""), {"pt": datetime.now(), "seid": event.Scheduled_Event_ID})
                     continue
 
-                conn.execute(text("""UPDATE DRIVERS SET User_Points = User_Points + :change WHERE User_ID = :uid"""), {"change": event.Points_Change, "uid": event.User_ID})
+                conn.execute(text("""UPDATE DRIVERS SET User_Points = User_Points + :change WHERE User_ID = :uid"""), {"change": event.Points_Change, "uid": event.Driver_ID})
                 conn.execute(text("""UPDATE SCHEDULED_POINT_EVENTS SET Scheduled_Status = 'Processed', Processed_Time = :pt WHERE Scheduled_Event_ID = :seid"""), {"pt": datetime.now(), "seid": event.Scheduled_Event_ID})
 
                 conn.execute(text(""" INSERT INTO POINT_TRANSACTIONS (Driver_ID, Actor_User_ID, Points_Changed, Reason, Transaction_Time) VALUES
