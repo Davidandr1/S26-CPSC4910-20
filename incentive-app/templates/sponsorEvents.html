@@ -37,4 +37,68 @@
   </form>
 </div>
 
+
+<div class="card" style="margin-top:20px;">
+  <h3>Schedule Existing Event</h3>
+  <form method="POST" action="{{ url_for('main.schedule_point_event') }}" onsubmit="return confirmScheduleEvent();">
+    <div class="form-group">
+      <label for="event_id">Event</label>
+      <select id="event_id" name="event_id" class="form-control" required>
+        <option value="" disabled selected>Select an event</option>
+        {% for e in events %}
+          <option value="{{ e.Event_ID }}">{{ e.Event_Name }} ({{ e.Event_Points }} points)</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+        <label>Select a driver(s)</label>
+        {% for d in drivers %}
+          <div>
+            <input type="checkbox" id="driver_{{ d.User_ID }}" name="driver_id" value="{{ d.User_ID }}">
+            <label for="driver_{{ d.User_ID }}">{{ d.User_FName }} {{ d.User_LName }} ({{ d.User_Email }})</label>
+          </div>
+        {% endfor %}
+    </div>
+
+    <div class="form-group">
+      <label for="scheduled_time">Scheduled Time</label>
+      <input id="scheduled_time" name="scheduled_time" type="datetime-local" class="form-control">
+    </div>
+    <div style="margin-top:.5rem;display:flex;gap:8px;">
+      <button class="btn btn-success" type="submit">Schedule Event</button>
+      <a class="btn btn-link" href="{{ url_for('main.sponsor_home') }}">Back</a>
+    </div>
+  </form>
+</div>
+
+<script>
+  function confirmScheduleEvent() {
+    const eventSelect = document.getElementById('event_id');
+    const selectedEvent = eventSelect.options[eventSelect.selectedIndex].text;
+    const eventName = selectedOption.getAttribute('data-name');
+    const points = selectedOption.getAttribute('data-points');
+    const scheduledTime = document.getElementById('scheduled_time').value;
+    const driverCheckboxes = document.querySelectorAll('input[name="driver_id"]:checked');
+    
+    if(!eventSelect.value) {
+      alert('Please select an event to schedule.');
+      return false;
+    }
+
+    if (driverCheckboxes.length === 0) {
+      alert('Please select at least one driver to schedule the event for.');
+      return false;
+    }
+
+    if (!scheduledTime) {
+      alert('Please select a scheduled time for the event.');
+      return false;
+    }
+
+    const confirmationMessage = `Schedule event "${eventName}" worth ${points} points for ${driverCheckboxes.length} driver(s) on ${new Date(scheduledTime).toLocaleString()}?`;
+    
+    return confirm(confirmationMessage);
+  }
+</script>
+
 {% endblock %}

@@ -135,4 +135,19 @@ FOREIGN KEY (Actee_ID) REFERENCES USERS(User_ID)
 );
 
 
-
+CREATE TABLE SCHEDULED_POINT_EVENTS (
+    Scheduled_Event_ID INT AUTO_INCREMENT PRIMARY KEY,
+    Sponsor_ID INT NOT NULL,
+    Driver_ID INT NOT NULL,
+    Created_By INT NOT NULL,
+    Event_ID INT,
+    Event_Name VARCHAR(100) NOT NULL,
+    Points_Change INT NOT NULL,
+    Reason VARCHAR(200) NOT NULL,
+    Scheduled_Time DATETIME NOT NULL,
+    Processed_Time DATETIME,
+    Scheduled_Status ENUM('Scheduled', 'Processed', 'Failed', 'Cancelled') NOT NULL DEFAULT 'Scheduled',
+    FOREIGN KEY (Sponsor_ID) REFERENCES SPONSORS(Sponsor_ID),
+    FOREIGN KEY (Driver_ID) REFERENCES DRIVERS(User_ID),
+    FOREIGN KEY (Created_By) REFERENCES USERS(User_ID)
+)

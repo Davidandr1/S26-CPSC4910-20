@@ -3,6 +3,8 @@ from sqlalchemy import text
 from app.db import engine
 from app.services.importProducts import ProductAPIService
 from app.services.inventoryService import InventoryService
+from app.services.ScheduledPointEvents import ScheduledPointEventService
+from datetime import datetime, timedelta
 import os
 main_bp = Blueprint("main", __name__)
 
@@ -278,6 +280,95 @@ def sponsor_delete_event():
 
     flash('Event deleted.', 'success')
     return redirect(url_for('main.sponsor_home'))
+
+
+@main_bp.post('/sponsor/events/schedule')
+def sponsor_schedule_event():
+    r = require_role('Sponsor')
+    if r:
+        r2 = require_role('Admin')
+        if r2:
+            return r2
+    sponsor_id = session.get('sponsor_id')
+    current_user = session.get('user_id')
+
+    if not sponsor_id or not current_user:
+        return "Sponsor ID or User ID not found in session", 400
+    if not current_user:
+        return "User ID not found in session", 400
+    
+    driver_ids = request.form.getlist('driver_id')
+    if not driver_ids:
+        flash('No drivers selected.', 'error')
+        return redirect(url_for('main.sponsor_events_page'))
+    
+    points_string = request.form.get('points', 0).strip()
+    try:
+        points = int(points_string)
+    except Exception:
+        flash('Points must be an integer.', 'error')
+        return redirect(url_for('main.sponsor_events_page'))
+    reason = request.form.get('reason', '').strip()
+    scheduled_for = datetime.strptime(request.form.get('scheduled_for').strip(), '%Y-%m-%dT%H:%M')
+
+    if points == 0:
+        flash('Points cannot be zero.', 'error')
+        return redirect(url_for('main.sponsor_events_page'))
+    if not reason:
+        flash('Reason for point adjustment is required.', 'error')
+        return redirect(url_for('main.sponsor_events_page'))
+    if scheduled_for < datetime.now():
+        flash('Scheduled time must be in the future.', 'error')
+        return redirect(url_for('main.sponsor_events_page'))
+    
+    created = ScheduledPointEventService.create_scheduled_events_bulk(sponsor_id, driver_ids, current_user, points, reason, scheduled_for)
+
+    if created == 0:
+        flash('No events were scheduled; verify driver selection.', 'error')
+    else:
+        flash(f'{created} event(s) scheduled successfully.', 'success')
+    return redirect(url_for('main.sponsor_events_page'))
+
+@main_bp.get('sponsor/points/scheduled')
+def sponsor_scheduled_points_page():
+    r = require_role('Sponsor')
+    if r:
+        r2 = require_role('Admin')
+        if r2:
+            return r2
+    sponsor_id = session.get('sponsor_id')
+    if not sponsor_id:
+        return "Sponsor ID not found in session", 400
+    events = ScheduledPointEventService.get_scheduled_events_for_sponsor(sponsor_id)
+    return render_template('sponsorScheduledPoints.html', nav_pages=NAV_PAGES, logged_in=is_logged_in(), scheduled_events=events)
+
+@main_bp.post('/tasks/process_scheduled_events')
+def process_scheduled_events():
+    processed = ScheduledPointEventService.process_scheduled_events()
+    return {"processed": processed}
+
+@main_bp.post('/sponsor/scheduled_events/cancel')
+def sponsor_cancel_scheduled_event():
+    r = require_role('Sponsor')
+    if r:
+        r2 = require_role('Admin')
+        if r2:
+            return r2
+    sponsor_id = session.get('sponsor_id')
+    if not sponsor_id:
+        return "Sponsor ID not found in session", 400
+
+    scheduled_event_id = request.form.get('scheduled_event_id')
+    if not scheduled_event_id:
+        return "Scheduled Event ID not provided", 400
+
+    cancelled = ScheduledPointEventService.cancel_scheduled_event(scheduled_event_id, sponsor_id)
+    if cancelled:
+        flash('Scheduled event cancelled successfully.', 'success')
+    else:
+        flash('Failed to cancel scheduled event. It may have already been processed or cancelled.', 'error')
+        
+    return redirect(url_for('main.sponsor_scheduled_points_page'))
 
 
 @main_bp.post('/sponsor/points/adjust')
