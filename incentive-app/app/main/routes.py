@@ -499,7 +499,7 @@ def sponsor_adjust_points():
         flash(msg, 'error')
     else:
         action = 'added to' if pts > 0 else 'removed from'
-        msg = f'{abs(pts)} points {action} {updated} driver(s).'
+        msg = f'{abs(point_change)} points {action} {updated} driver(s).'
         if skipped_insufficient:
             msg += f' {skipped_insufficient} driver(s) skipped due to insufficient points.'
         if skipped_at_cap:
