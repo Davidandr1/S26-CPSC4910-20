@@ -831,77 +831,116 @@ def admin_users():
 
 @main_bp.get("/store")
 def storefront():
-    r = require_role("Driver")   # Only drivers can shop
+    r = require_role("Driver")
     if r:
         return r
 
     user = fetch_current_user()
+    uid = session["user_id"]
 
-    with engine.connect() as conn:
-        products = conn.execute(text("""
-            SELECT i.Item_ID, i.Item_Name, i.Prod_Description, i.Prod_Quantity, i.Is_Available,
-                ROUND(i.Prod_UnitPrice / s.Sponsor_PointConversion) AS point_cost
-            FROM INVENTORY i
-            JOIN SPONSORS s ON i.Sponsor_ID = s.Sponsor_ID
-            JOIN DRIVERS d ON d.Sponsor_ID = i.Sponsor_ID
-            WHERE d.User_ID = :uid AND i.Is_Available = TRUE
-            """), {"uid": session["user_id"]}).fetchall()
-
-
-    search = request.args.get("search")
-    category_filter = request.args.get("category")
-    min_price = request.args.get("min_price")
-    max_price = request.args.get("max_price")
+    # Get query params safely
+    search = request.args.get("search", "").strip()
+    category = request.args.get("category", "").strip()
     sort_by = request.args.get("sort_by", "asc")
 
-    if min_price is not None and max_price is not None:
-        if min_price > max_price:
-            max_price = min_price
+    try:
+        min_points = int(request.args.get("min_price", 0))
+    except:
+        min_points = 0
 
-    filters = []
-    params = {"sid": session.get("sponsor_id")}
+    try:
+        max_points = int(request.args.get("max_price", 999999))
+    except:
+        max_points = 999999
+
+    if min_points > max_points:
+        max_points = min_points
+
+    # Build query 
+    filters = ["i.Is_Available = TRUE"]
+    params = {"uid": uid}
 
     if search:
-        filters.append("Item_Name LIKE :search")
+        filters.append("i.Item_Name LIKE :search")
         params["search"] = f"%{search}%"
 
-    if category_filter:
-        filters.append("Category_Name = :category")
-        params["category"] = category_filter
-    if min_price:
-        filters.append("Prod_UnitPrice >= :min_price")
-        params["min_price"] = min_price
-    if max_price:
-        filters.append("Prod_UnitPrice <= :max_price")
-        params["max_price"] = max_price
-    order_clause = "ORDER BY Prod_UnitPrice ASC" if sort_by == "asc" else "ORDER BY Prod_UnitPrice DESC"
-    filter_statement = " AND ".join(filters) if filters else "1=1"
+    if category:
+        filters.append("i.Prod_Category = :category")
+        params["category"] = category
 
+    # Filter by points
+    filters.append("i.Point_Value >= :min_points")
+    filters.append("i.Point_Value <= :max_points")
+    params["min_points"] = min_points
+    params["max_points"] = max_points
+
+    order_clause = "i.Point_Value ASC" if sort_by == "asc" else "i.Point_Value DESC"
+    where_clause = " AND ".join(filters)
+
+    # Query DB
     with engine.connect() as conn:
-        sponsorID = conn.execute(text("SELECT Sponsor_ID FROM DRIVERS WHERE User_ID = :uid"), {"uid": session["user_id"]}).fetchone().Sponsor_ID
+
+        # Get driver's sponsor
+        sponsor_row = conn.execute(text("""
+            SELECT Sponsor_ID FROM DRIVERS WHERE User_ID = :uid
+        """), {"uid": uid}).fetchone()
+
+        if not sponsor_row:
+            return "Sponsor not found", 400
+
+        sponsor_id = sponsor_row.Sponsor_ID
+        params["sid"] = sponsor_id
+
+        # Main product query
         products = conn.execute(text(f"""
-            SELECT Item_ID, Item_Name, Prod_Description, Prod_UnitPrice, Is_Available, Product_Image_URL, Point_Value, Prod_Category
-            FROM INVENTORY
-            WHERE Sponsor_ID = :sid AND Is_Available = TRUE AND {filter_statement} {order_clause}
+            SELECT 
+                i.Item_ID,
+                i.Item_Name,
+                i.Prod_Description,
+                i.Prod_Quantity,
+                i.Is_Available,
+                i.Product_Image_URL,
+                i.Point_Value,
+                i.Prod_Category
+            FROM INVENTORY i
+            WHERE i.Sponsor_ID = :sid
+              AND {where_clause}
+            ORDER BY {order_clause}
         """), params).fetchall()
 
+        # Categories for dropdown
         categories = conn.execute(text("""
-            SELECT DISTINCT Prod_Category FROM INVENTORY WHERE Sponsor_ID = :sid
-        """), {"sid": sponsorID}).fetchall()
+            SELECT DISTINCT Prod_Category 
+            FROM INVENTORY 
+            WHERE Sponsor_ID = :sid 
+              AND Prod_Category IS NOT NULL 
+              AND Prod_Category != ''
+        """), {"sid": sponsor_id}).fetchall()
 
-        max_point_cost = conn.execute(text("""
-            SELECT MAX(Prod_UnitPrice) AS max_price FROM INVENTORY WHERE Sponsor_ID = :sid AND Is_Available = TRUE
-        """), {"sid": sponsorID}).fetchone().max_price or 1000
+        # Max points for slider
+        max_point_cost_row = conn.execute(text("""
+            SELECT MAX(Point_Value) AS max_points 
+            FROM INVENTORY 
+            WHERE Sponsor_ID = :sid AND Is_Available = TRUE
+        """), {"sid": sponsor_id}).fetchone()
 
+        max_point_cost = max_point_cost_row.max_points if max_point_cost_row and max_point_cost_row.max_points else 1000
 
-        points = conn.execute(text("""SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"""), {"uid": session["user_id"]}).fetchone()
-        user_points = points.User_Points if points and hasattr(points, 'User_Points') else 0
-        row = conn.execute(text("""
+        # User points
+        points_row = conn.execute(text("""
+            SELECT User_Points FROM DRIVERS WHERE User_ID = :uid
+        """), {"uid": uid}).fetchone()
+
+        user_points = points_row.User_Points if points_row else 0
+
+        # Cart count
+        cart_row = conn.execute(text("""
             SELECT COALESCE(SUM(Quantity), 0) AS cnt
             FROM CART_ITEMS
             WHERE Driver_ID = :uid
-        """), {"uid": session["user_id"]}).fetchone()
-        cart_count = row.cnt
+        """), {"uid": uid}).fetchone()
+
+        cart_count = cart_row.cnt if cart_row else 0
 
     return render_template(
         "storefront.html",
