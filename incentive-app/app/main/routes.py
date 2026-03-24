@@ -224,7 +224,7 @@ def sponsor_events_page():
         ScheduledPointEventService.process_scheduled_events()
     except Exception as e:
         print("Scheduled event processing failed:", e)
-        
+
     sponsor_id = session.get('sponsor_id')
     if not sponsor_id:
         return "Sponsor ID not found in session", 400
@@ -458,39 +458,53 @@ def sponsor_adjust_points():
 
     updated = 0
     skipped_insufficient = 0
+    skipped_at_cap = 0
     with engine.begin() as conn:
+        sponsor_info = conn.execute(text(""" SELECT COALESCE(Sponsor_MaxPoints, 3000000) AS Sponsor_MaxPoints FROM SPONSORS WHERE Sponsor_ID = :sid"""),
+                                        {"sid": sponsor_id}).fetchone()
+        sponsor_cap = sponsor_info.Sponsor_MaxPoints if sponsor_info else 3000000
         for did in driver_ids:
             # verify driver belongs to sponsor
-            drv = conn.execute(text("SELECT User_ID FROM DRIVERS WHERE User_ID = :did AND Sponsor_ID = :sid"), {"did": did, "sid": sponsor_id}).fetchone()
+            drv = conn.execute(text("SELECT User_ID, User_Points FROM DRIVERS WHERE User_ID = :did AND Sponsor_ID = :sid"), {"did": did, "sid": sponsor_id}).fetchone()
             if not drv:
                 continue
-
+            
             # Check current points to avoid negative balance
-            if pts < 0:
-                cur = conn.execute(text("SELECT User_Points FROM DRIVERS WHERE User_ID = :did"), {"did": did}).fetchone()
-                cur_points = cur.User_Points if cur and hasattr(cur, 'User_Points') else 0
-                if cur_points + pts < 0:
-                    # Skip this driver to prevent negative balance
-                    skipped_insufficient += 1
-                    continue
+            driverPoints = drv.User_Points if drv and hasattr(drv, 'User_Points') else 0
+            new_points = driverPoints + pts
+            if new_points > sponsor_cap:
+                new_points = sponsor_cap
+            
+            if new_points < 0:
+                skipped_insufficient +=1
+                continue
 
+            point_change = new_points - driverPoints
+            if point_change == 0:
+                skipped_at_cap += 1
+
+            
             # Update points (no transaction logging here)
             conn.execute(text("UPDATE DRIVERS SET User_Points = User_Points + :pts WHERE USER_ID = :did"), {"pts": pts, "did": did})
             updated += 1
 
             conn.execute(text("""INSERT INTO POINT_TRANSACTIONS (Driver_ID, Actor_User_ID, Points_Changed, Reason, Transaction_Time) VALUES (:did, :actor_id, :pts, :reason, CURRENT_TIMESTAMP)"""),
-                            {"did": did, "actor_id": current_user, "pts": pts, "reason": reason})
+                            {"did": did, "actor_id": current_user, "pts": point_change, "reason": reason})
 
     if updated == 0:
         msg = 'No drivers were updated; verify selection and sponsor association.'
         if skipped_insufficient:
-            msg += f' {skipped_insufficient} driver(s) skipped due to insufficient points.'
+            msg += f' {skipped_insufficient} driver(s) skipped due to insufficient points. '
+        if skipped_at_cap:
+            msg += f' {skipped_at_cap} driver(s) skipped due to max points.'
         flash(msg, 'error')
     else:
         action = 'added to' if pts > 0 else 'removed from'
         msg = f'{abs(pts)} points {action} {updated} driver(s).'
         if skipped_insufficient:
             msg += f' {skipped_insufficient} driver(s) skipped due to insufficient points.'
+        if skipped_at_cap:
+            msg += f' {skipped_at_cap} driver(s) skipped due to max points.'
         flash(msg, 'success')
 
     return redirect(url_for('main.sponsor_home'))
@@ -516,7 +530,7 @@ def sponsor_products():
         """), {"sid": sponsor_id, "cats": tuple(categories.split(",")) if categories else ()}).fetchall()
 
         sponsor = conn.execute(text("""
-                                    SELECT Sponsor_Name, Sponsor_PointConversion FROM SPONSORS WHERE Sponsor_ID = :sid
+                                    SELECT Sponsor_Name, Sponsor_PointConversion, Sponsor_MaxPoints FROM SPONSORS WHERE Sponsor_ID = :sid
                                 """), {"sid": sponsor_id}).fetchone()
         
         categories = conn.execute(text("""
@@ -732,6 +746,33 @@ def sponsor_point_conversion():
     flash("Point conversion rate updated successfully.", "success")
     return redirect(url_for("main.sponsor_home"))
 
+@main_bp.post("/sponsor/max-points")
+def sponsor_max_points():
+    r = require_role("Sponsor")
+    if r:
+        return r
+    sponsor_id = session.get("sponsor_id")
+    if not sponsor_id:
+        return "Sponsor ID not found in session", 400
+    new_cap = request.form.get("max_points")
+    if not new_cap:
+        flash("Max points value is required.", "error")
+        return redirect(url_for("main.sponsor_home"))
+    try:
+        new_cap = int(new_cap)
+        if new_cap <= 0:
+            raise ValueError
+    except ValueError:
+        flash("Max points must be a positive integer.", "error")
+        return redirect(url_for("main.sponsor_home"))
+    
+    with engine.begin() as conn:
+        conn.execute(text("""
+            UPDATE SPONSORS SET Sponsor_MaxPoints = :cap WHERE Sponsor_ID = :sid
+        """), {"cap": new_cap, "sid": sponsor_id})
+    flash("Max points updated successfully.", "success")
+    return redirect(url_for("main.sponsor_home"))
+
 @main_bp.get("/admin/home")
 def admin_home():
     r = require_role("Admin")
@@ -750,7 +791,7 @@ def admin_sponsors():
     with engine.connect() as conn:
         sponsors = conn.execute(text('''
             SELECT s.Sponsor_ID, s.Sponsor_Name, s.Sponsor_Email, s.Sponsor_Phone,
-                   s.Sponsor_Address, s.Sponsor_PointConversion, s.Sponsor_Creation,
+                   s.Sponsor_Address, s.Sponsor_PointConversion, s.Sponsor_MaxPoints,s.Sponsor_Creation,
                    COALESCE(COUNT(d.User_ID),0) AS driver_count
             FROM SPONSORS s
             LEFT JOIN DRIVERS d ON d.Sponsor_ID = s.Sponsor_ID

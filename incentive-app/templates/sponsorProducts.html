@@ -19,6 +19,21 @@
     </form>
 </div>
 
+<div class="card" style="margin-top:20px;">
+    <h3>Point Cap</h3>
+    <p>Current: {{ sponsor.Sponsor_MaxPoints }}</p>
+    <p>Set the maximum number of points a driver can earn from your sponsorship.</p>
+    <form method="POST" action="{{ url_for('main.sponsor_max_points') }}" style="display:flex;gap:8px;align-items:center;">
+        <div>
+            <label for="point_cap">Point Cap</label>
+            <input type="number" id="point_cap" name="point_cap" class="form-control" value="{{ point_cap }}" min="0">
+        </div>
+        <div style="margin-top:24px;">
+            <button type="submit" class="btn btn-primary">Update</button>
+        </div>
+    </form>
+</div>
+
 <div class="card">
     <form method="GET" action="{{ url_for('main.sponsor_products') }}" style="display:flex;gap:16px;align-items:center;">
         <div>
