@@ -482,10 +482,9 @@ def sponsor_adjust_points():
             point_change = new_points - driverPoints
             if point_change == 0:
                 skipped_at_cap += 1
-
             
             # Update points (no transaction logging here)
-            conn.execute(text("UPDATE DRIVERS SET User_Points = User_Points + :pts WHERE USER_ID = :did"), {"pts": pts, "did": did})
+            conn.execute(text("UPDATE DRIVERS SET User_Points = User_Points + :pts WHERE USER_ID = :did"), {"pts": point_change, "did": did})
             updated += 1
 
             conn.execute(text("""INSERT INTO POINT_TRANSACTIONS (Driver_ID, Actor_User_ID, Points_Changed, Reason, Transaction_Time) VALUES (:did, :actor_id, :pts, :reason, CURRENT_TIMESTAMP)"""),
