@@ -20,6 +20,7 @@
 </head>
 <body>
   <header>
+    <img src="{{ url_for('static', filename='images/auth-icon.svg') }}" alt="Logo" style="height:36px;margin-right:12px; color: #2563eb;">
     <strong>Incentive App</strong>
 
     {% if logged_in %}
@@ -36,15 +37,13 @@
           <a href="/admin/create">Create New Admin</a>
         {% elif item[0] == "sponsor_create_page" and session.user_type in ["Sponsor", "Admin"] %}
           <a href="/sponsor/create">Create New Sponsor User</a>
+        {% elif item[0] == "sponsor_products" and session.user_type == "Sponsor" %}
+          <a href="/sponsor/products">My Products</a>
         {% elif item|length >= 3 %}
           <a href="/page/{{ item[2] }}">{{ item[1] }}</a>
         {% endif %}
       {% endfor %}
 
-      {# Show Store link for drivers if nav_pages doesn't include it #}
-      {% if session.user_type == 'Driver' %}
-        <a href="/store">Store</a>
-      {% endif %}
 
       <div class="spacer"></div>
       <a href="/change-password">Change Password</a>
@@ -63,6 +62,18 @@
   {% endif %}
 
   <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div style="margin-top:12px;">
+          {% for category, msg in messages %}
+            <div class="card" style="background: {% if category=='error' %}#feecea{% elif category=='success' %}#ecffed{% else %}#f5f7fa{% endif %}; border-color: #ddd; padding:8px; margin-bottom:8px;">
+              {{ msg }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
     {% block content %}{% endblock %}
   </main>
 

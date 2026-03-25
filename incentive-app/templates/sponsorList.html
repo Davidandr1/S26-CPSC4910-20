@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% set title = "Sponsors" %}
+{% block content %}
+<h1>Sponsors</h1>
+<div class="card">
+  {% if sponsors|length == 0 %}
+    <p><em>No sponsors found.</em></p>
+  {% else %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Address</th>
+          <th>Point Conversion</th>
+          <th>Max Points</th>
+          <th>Created</th>
+          <th>Drivers</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sponsors %}
+        <tr>
+          <td>{{ s.Sponsor_ID }}</td>
+          <td>{{ s.Sponsor_Name }}</td>
+          <td>{{ s.Sponsor_Email or 'N/A' }}</td>
+          <td>{{ s.Sponsor_Phone or 'N/A' }}</td>
+          <td>{{ s.Sponsor_Address or 'N/A' }}</td>
+          <td>{{ s.Sponsor_PointConversion }}</td>
+          <td>{{ s.Sponsor_MaxPoints }}</td>
+          <td>{{ s.Sponsor_Creation }}</td>
+          <td>{{ s.driver_count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+{% endblock %}

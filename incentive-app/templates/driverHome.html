@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% set title = "Driver Home" %}
+{% block content %}
+<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
+    <div class="card" style="flex:1;min-width:220px;">
+        <p>Welcome back.</p>
+        <p><strong>Logged in as:</strong> {{ session.username }}</p>
+        <p><strong>User Type:</strong> {{ session.user_type }}</p>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;align-items:center;min-width:160px;">
+        <div class="point-balance" id="points-box" style="text-align:center;padding:16px;border-radius:12px;">
+            <span style="font-size:13px;opacity:0.9;display:block;margin-bottom:6px;">Your Points</span>
+            <div id="points-value" style="font-size:26px;font-weight:800;">{{ points or 0 }}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <button id="refresh-points-btn" class="btn btn--primary" type="button">Refresh</button>
+            <a class="btn btn-secondary" href="{{ url_for('auth.profile_page') }}">Edit Profile</a>
+        </div>
+    </div>
+
+</div>
+
+<div class="card">
+    <h3>Points Summary</h3>
+    <p><strong>Total Points:</strong> {{ points }}</p>
+    {% if transactions|length == 0 %}
+        <p><em>No transactions found.</em></p>
+    {% else %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Points Change</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr>
+                    <td>{{ txn.Transaction_Time }}</td>
+                    <td>{{ txn.Reason }}</td>
+                    <td>{{ '+' if txn.Points_Changed > 0 else '' }}{{ txn.Points_Changed }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+
+<!-- ── LEADERBOARD ──────────────────────────────────────────────── -->
+<div class="leaderboard-card">
+    <div class="leaderboard-header">
+        <h3>Leaderboard</h3>
+        <span class="leaderboard-scope">Ranked within your sponsor group</span>
+    </div>
+
+    {% if leaderboard|length == 0 %}
+        <p class="leaderboard-empty">No drivers found for this sponsor.</p>
+    {% else %}
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th class="col-rank">Rank</th>
+                    <th>Driver</th>
+                    <th class="col-pts">Points</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for driver in leaderboard %}
+                <tr {% if driver.User_ID == session.user_id %}class="leaderboard-highlight"{% endif %}>
+                    <td class="col-rank">
+                        {% if loop.index == 1 %}
+                        {% elif loop.index == 2 %}
+                        {% elif loop.index == 3 %}
+                        {% else %}<span class="leaderboard-rank-num">{{ loop.index }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ driver.Username }}
+                        {% if driver.User_ID == session.user_id %}
+                            <span class="leaderboard-you-badge">You</span>
+                        {% endif %}
+                    </td>
+                    <td class="col-pts">{{ driver.User_Points }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+<!-- ── END LEADERBOARD ─────────────────────────────────────────── -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const btn = document.getElementById('refresh-points-btn');
+    if (!btn) return;
+    btn.addEventListener('click', async function () {
+        const original = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = 'Refreshing...';
+        try {
+            const resp = await fetch("{{ url_for('main.driver_points_api') }}", { credentials: 'same-origin' });
+            if (!resp.ok) throw new Error('Network error');
+            const data = await resp.json();
+            const val = document.getElementById('points-value');
+            if (val) val.textContent = (data.points ?? 0).toString();
+        } catch (e) {
+            alert('Unable to refresh points.');
+        } finally {
+            btn.disabled = false;
+            btn.innerText = original;
+        }
+    });
+});
+</script>
+{% endblock %}

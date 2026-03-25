@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% set title = "Sponsor - Events" %}
+{% block content %}
+<div class="card">
+  <h3>Manage Events</h3>
+  <p>Create reusable point events and delete existing ones.</p>
+
+  <ul class="list-group">
+    {% for e in events %}
+      <li class="list-group-item d-flex justify-content-between align-items-center">
+        <div>{{ e.Event_Name }} <small>({{ e.Event_Points }})</small></div>
+        <form method="post" action="{{ url_for('main.sponsor_delete_event') }}" style="margin:0;">
+          <input type="hidden" name="event_id" value="{{ e.Event_ID }}">
+          <button class="btn btn-danger btn-sm">Delete</button>
+        </form>
+      </li>
+    {% else %}
+      <li class="list-group-item"><em>No events yet.</em></li>
+    {% endfor %}
+  </ul>
+
+  <hr>
+  <h5>Create Event</h5>
+  <form method="post" action="{{ url_for('main.sponsor_create_event') }}">
+    <div class="form-group">
+      <label for="event_name">Name</label>
+      <input id="event_name" name="event_name" class="form-control">
+    </div>
+    <div class="form-group">
+      <label for="event_points">Points</label>
+      <input id="event_points" name="event_points" type="number" class="form-control" value="0">
+    </div>
+    <div style="margin-top:.5rem;display:flex;gap:8px;">
+      <button class="btn btn-success" type="submit">Create</button>
+      <a class="btn btn-link" href="{{ url_for('main.sponsor_home') }}">Back</a>
+    </div>
+  </form>
+</div>
+
+
+<div class="card" style="margin-top:20px;">
+  <h3>Schedule Existing Event</h3>
+  <form method="POST" action="{{ url_for('main.sponsor_schedule_event') }}" onsubmit="return confirmScheduleEvent();">
+    <div class="form-group">
+      <label for="event_id">Event</label>
+      <select id="event_id" name="event_id" class="form-control" required>
+        <option value="" disabled selected>Select an event</option>
+        {% for e in events %}
+          <option value="{{ e.Event_ID }}" data-name="{{ e.Event_Name }}" data-points="{{ e.Event_Points }}"> {{ e.Event_Name }} ({{ e.Event_Points }} points)</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+        <label>Select a driver(s)</label>
+        {% if drivers %}
+          {% for d in drivers %}
+            <div>
+              <input type="checkbox" id="driver_{{ d.User_ID }}" name="driver_id" value="{{ d.User_ID }}">
+              <label for="driver_{{ d.User_ID }}">{{ d.User_FName }} {{ d.User_LName }} ({{ d.User_Email }})</label>
+            </div>
+          {% endfor %}
+        {% else %}
+            <p><em>No active Drivers found</em></p>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+      <label for="scheduled_time">Scheduled Time</label>
+      <input id="scheduled_time" name="scheduled_time" type="datetime-local" class="form-control">
+    </div>
+    <div style="margin-top:.5rem;display:flex;gap:8px;">
+      <button class="btn btn-success" type="submit">Schedule Event</button>
+      <a class="btn btn-link" href="{{ url_for('main.sponsor_home') }}">Back</a>
+    </div>
+  </form>
+</div>
+
+<script>
+  function confirmScheduleEvent() {
+    const eventSelect = document.getElementById('event_id');
+    if(!eventSelect.value) {
+      alert('Please select an event to schedule.');
+      return false;
+    }
+
+
+    const selectedEvent = eventSelect.options[eventSelect.selectedIndex];
+    const eventName = selectedEvent.getAttribute('data-name');
+    const points = selectedEvent.getAttribute('data-points');
+    const scheduledTime = document.getElementById('scheduled_time').value;
+    const driverCheckboxes = document.querySelectorAll('input[name="driver_id"]:checked');
+    
+    
+
+    if (driverCheckboxes.length === 0) {
+      alert('Please select at least one driver to schedule the event for.');
+      return false;
+    }
+
+    if (!scheduledTime) {
+      alert('Please select a scheduled time for the event.');
+      return false;
+    }
+
+    const confirmationMessage = `Schedule event "${eventName}" worth ${points} points for ${driverCheckboxes.length} driver(s) on ${new Date(scheduledTime).toLocaleString()}?`;
+    
+    return confirm(confirmationMessage);
+  }
+</script>
+
+{% endblock %}

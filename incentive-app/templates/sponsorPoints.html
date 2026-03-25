@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% set title = "Sponsor - Adjust Points" %}
+{% block content %}
+<div class="card">
+  <h3>Adjust Points</h3>
+  <p>Select drivers and apply points (positive to add, negative to remove).</p>
+  <form method="post" action="{{ url_for('main.sponsor_adjust_points') }}" onsubmit="return confirmAdjust(this)">
+    <div class="form-group">
+      <label for="event_select">Quick apply event (optional)</label>
+      <select id="event_select" name="event_id" class="form-control" onchange="onEventChange(this)">
+        <option value="">-- none --</option>
+        {% for e in events %}
+          <option value="{{ e.Event_ID }}" data-points="{{ e.Event_Points }}">{{ e.Event_Name }} ({{ e.Event_Points }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <label for="driverSearch">Search Drivers</label>
+      <input type="text" id="driverSearch" class="form-control" placeholder="Search by name or email..." onkeyup="filterDrivers()">
+    </div>
+    <div style="max-height:320px;overflow:auto;border:1px solid #eee;padding:8px;margin-bottom:12px;">
+      <table class="table">
+        <thead>
+          <tr><th></th><th>Driver</th><th>Email</th><th>Points</th></tr>
+        </thead>
+        <tbody>
+          {% for d in drivers %}
+            <tr>
+              <td><input type="checkbox" name="driver_id" value="{{ d.User_ID }}"></td>
+              <td>{{ d.User_FName }} {{ d.User_LName }}</td>
+              <td>{{ d.User_Email }}</td>
+              <td>{{ d.User_Points }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="form-group">
+      <label for="points">Points</label>
+      <input id="points" name="points" type="number" class="form-control" value="0">
+    </div>
+    <div class="form-group">
+      <label for="reason">Reason (Required if not selecting a quick apply event)</label>
+      <input id="reason" name="reason" class="form-control">
+    </div>
+
+    <div style="margin-top:8px;display:flex;gap:8px;">
+      <button class="btn btn-primary" type="submit">Apply</button>
+      <button class="btn btn-secondary" type="button" onclick="selectAll(true)">Select All</button>
+      <button class="btn btn-secondary" type="button" onclick="selectAll(false)">Clear</button>
+      <a class="btn btn-link" href="{{ url_for('main.sponsor_home') }}">Back</a>
+    </div>
+  </form>
+</div>
+
+<script>
+function selectAll(on){
+  document.querySelectorAll('input[type=checkbox][name="driver_id"]').forEach(b=>b.checked=on);
+}
+function confirmAdjust(){
+  var boxes = Array.from(document.querySelectorAll('input[type=checkbox][name="driver_id"]')).filter(b=>b.checked);
+  if(boxes.length===0){ alert('Please select at least one driver'); return false; }
+  var pts = parseInt(document.getElementById('points').value||'0',10);
+  if(isNaN(pts)||pts===0){ alert('Points must be non-zero integer'); return false; }
+  var reason = (document.getElementById('reason').value||'').trim();
+  var action = pts>0 ? 'ADD' : 'REMOVE';
+  var msg = `You are about to ${action} ${Math.abs(pts)} point(s) ${pts>0?'to':'from'} ${boxes.length} driver(s).`;
+  if(reason) msg += '\nReason: '+reason;
+  msg += '\n\nProceed?';
+  return confirm(msg);
+}
+
+function onEventChange(sel){
+  var opt = sel.options[sel.selectedIndex];
+  if(!opt || !opt.value){
+    return;
+  }
+  var pts = opt.getAttribute('data-points');
+  if(pts !== null){
+    document.getElementById('points').value = pts;
+    // default reason to event name if none provided
+    var reasonEl = document.getElementById('reason');
+    if(reasonEl && (!reasonEl.value || reasonEl.value.trim()==='')){
+      reasonEl.value = opt.text.split(' (')[0];
+    }
+  }
+}
+
+function filterDrivers(){
+  var q = document.getElementById('driverSearch').value.toLowerCase();
+  document.querySelectorAll('table tbody tr').forEach(row=>{
+    var name = row.cells[1].textContent.toLowerCase();
+    var email = row.cells[2].textContent.toLowerCase();
+    row.style.display = (name.includes(q) || email.includes(q)) ? '' : 'none';
+  });
+}
+</script>
+
+{% endblock %}

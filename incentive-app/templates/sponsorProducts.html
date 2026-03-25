@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% set title = "Sponsor Inventory" %}
+{% block content %}
+
+
+
+<div class="card">
+    <h3>Point Conversion </h3>
+    <p>Current: {{ sponsor.Sponsor_PointConversion}}</p>
+    <p>Set how many points drivers earn per dollar spent on your products.</p>
+    <form method="POST" action="{{ url_for('main.sponsor_point_conversion') }}" style="display:flex;gap:8px;align-items:center;">
+        <div>
+            <label for="conversion_rate">Conversion Rate (points per dollar)</label>
+            <input type="number" id="conversion_rate" name="conversion_rate" class="form-control" value="{{ conversion_rate }}" min="0" step="0.01">
+        </div>
+        <div style="margin-top:24px;">
+            <button type="submit" class="btn btn-primary">Update</button>
+        </div>
+    </form>
+</div>
+
+<div class="card" style="margin-top:20px;">
+    <h3>Point Cap</h3>
+    <p>Current: {{ sponsor.Sponsor_MaxPoints }}</p>
+    <p>Set the maximum number of points a driver can earn from your sponsorship.</p>
+    <form method="POST" action="{{ url_for('main.sponsor_max_points') }}" style="display:flex;gap:8px;align-items:center;">
+        <div>
+            <label for="max_points">Point Cap</label>
+            <input type="number" id="max_points" name="max_points" class="form-control" value="{{ max_points }}" min="0">
+        </div>
+        <div style="margin-top:24px;">
+            <button type="submit" class="btn btn-primary">Update</button>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <form method="GET" action="{{ url_for('main.sponsor_products') }}" style="display:flex;gap:16px;align-items:center;">
+        <div>
+            <label for="categories">Filter by Category</label>
+            <select id="categories" name="categories" class="form-control" multiple>
+                {% for category in categories %}
+                    <option value="{{ category.Prod_Category }}" {% if category.Prod_Category in request.args.get('categories', '') %}selected{% endif %}>
+                        {{ category.Prod_Category }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="margin-top:24px;">
+            <button type="submit" class="btn btn-primary">Apply Filters</button>
+            <a href="{{ url_for('main.sponsor_products') }}" class="btn btn-primary">Clear Filters</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Import Product</h3>
+    <p>Search eBay for products to import into your catalog.</p>
+    <div> 
+        <label for="search_query">Search Query</label>
+        <input type="text" id="search_query" class="form-control" placeholder="Search for Products">
+    </div>
+    <div>
+        <label for="limit">Max Results</label>
+        <input type="number" id="limit" class="form-control" placeholder="Number of products to import" value="10" min="1" max="100">
+    </div>
+    <div>
+        <button type="button" class="btn btn-primary" id="search_btn" onclick="searchProducts()">Search</button>
+    </div>
+</div>
+
+
+<div class="card">
+    <p>Products offered by {{ session.sponsor_name }}</p>
+
+    {% if products|length == 0 %}
+        <p><em>No products found.</em></p>
+    {% else %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Image</th>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Product Points</th>
+                    <th>Quantity</th>
+                    <th>Available</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>
+                        <img src="{{ product.Product_Image_URL }}" alt="{{ product.Item_Name }}" style="width:50px;height:50px;object-fit:cover;">
+                    </td>
+                    <td>{{ product.Item_Name }}</td>
+                    <td>{{ product.Prod_Category or 'N/A'}}</td>
+                    <td>{{ product.Point_Value }}</td>
+                    <td>{{ product.Prod_Quantity }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('main.sponsor_product_availability', item_id=product.Item_ID) }}" style="display:inline;">
+                            <button type="submit" class="btn btn-sm {{ 'btn-success' if product.Is_Available else 'btn-secondary' }}">
+                                {{ 'Available' if product.Is_Available else 'Unavailable' }}
+                            </button>
+                        </form>
+                    </td>
+
+                    <td> 
+                        <a class="btn btn-primary btn-sm" href="/sponsor/products/{{ product.Item_ID }}">View/Edit</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+
+<div id = "search_status" style="margin-top:16px;"></div>
+<div id="search_results" style="margin-top:16px;"></div>
+
+<script>
+   async function searchProducts() {
+        const query = document.getElementById('search_query').value.trim();
+        const limit = parseInt(document.getElementById('limit').value, 10);
+        const results = document.getElementById('search_results');
+        const status = document.getElementById('search_status');
+        if (!query) {
+            alert('Please enter a search query.');
+            return;
+        }
+        status.innerHTML = 'Searching...';
+
+        try{
+            const response = await fetch(`/sponsor/products/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(`Search failed: ${response.statusText}`);
+            }
+            if(!data.products || data.products.length === 0){
+                alert('No products found for the given query.');
+                return;
+            }
+
+            status.innerHTML = `Found ${data.products.length} products. Displaying results below.`;
+            let html = "";
+            // Clear previous results
+            results.innerHTML = '';
+            data.products.forEach((product) => {
+                const encodedProduct = encodeURIComponent(JSON.stringify(product));
+                html += `
+                    <div class="card mb-2">
+                        <div style ="display:flex;gap:16px;">
+                            <img src="${product.image }" alt="${product.name}" style="width:150px;height:150px;object-fit:cover;">
+                            <div>
+                                <h5>${product.name}</h5>
+                                <p>${product.description || 'No description available.'}</p>
+                                <p><strong>Category:</strong> ${product.category || 'N/A'}</p>
+                                <p><strong>Points:</strong> ${product.points}</p>
+                                <button class="btn btn-sm btn-primary" onclick="importProduct('${encodedProduct}')">Import</button>
+                            </div>
+                        </div>
+                    </div>
+                `;});
+            results.innerHTML = html;
+                }  
+        catch (error) {
+            console.error('Error searching products:', error);
+            alert('An error occurred while searching for products.');
+        }
+    }
+
+    async function importProduct(encodedProduct) {
+        try {
+            const product = JSON.parse(decodeURIComponent(encodedProduct));
+
+            const payload = {
+                external_id: product.external_id,
+                name: product.name,
+                description: product.description,
+                price: product.price,
+                category: product.category,
+                image: product.image
+            };
+
+            const response = await fetch('/api/sponsor/products', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(`Import failed: ${data.error || response.statusText}`);
+            }
+            alert('Product imported successfully!');
+            window.location.reload();
+            
+
+        } catch (error) {
+            console.error('Error importing product:', error);
+            alert('An error occurred while importing the product.');
+        }
+    }
+</script>
+
+{% endblock %}

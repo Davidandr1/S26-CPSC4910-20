@@ -35,4 +35,20 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+DELIMITER $$
+
+CREATE TRIGGER Check_Point_Balance
+BEFORE INSERT ON ORDERS FOR EACH ROW
+BEGIN
+	DECLARE Point_Balance INT;
+    
+	SELECT User_Points INTO Point_Balance FROM DRIVERS WHERE User_ID = NEW.Driver_ID;
+    
+    IF NEW.Total_Points > Point_Balance THEN SIGNAL SQLSTATE '45000'
+		SET MESSAGE_TEXT = "Insufficient Balance";
+	END IF;
+END$$
+
+DELIMITER ;
 	
