@@ -17,29 +17,48 @@
         </div>
     </div>
 
-    <!-- Controls -->
-    <div class="store-controls">
-        <input type="text" placeholder="Search products..." class="search-input">
+    <!-- Controls (FIXED) -->
+    <form method="GET" class="store-controls">
 
-        <select class="filter-select">
+        <input type="text" 
+               name="search"
+               placeholder="Search products..." 
+               class="search-input"
+               value="{{ request.args.get('search', '') }}">
+
+        <select name="category" class="filter-select">
             <option value="">All Categories</option>
             {% for category in categories %}
-                <option value="{{ category.Prod_Category }}">{{ category.Prod_Category }}</option>
+                <option value="{{ category.Prod_Category }}"
+                    {% if request.args.get('category') == category.Prod_Category %}selected{% endif %}>
+                    {{ category.Prod_Category }}
+                </option>
             {% endfor %}
         </select>
 
-        <select class="filter-select">
-            <option value="asc">Sort by Points (Low → High)</option>
-            <option value="desc">Sort by Points (High → Low)</option>
+        <select name="sort_by" class="filter-select">
+            <option value="asc"
+                {% if request.args.get('sort_by') == 'asc' %}selected{% endif %}>
+                Sort by Points (Low → High)
+            </option>
+            <option value="desc"
+                {% if request.args.get('sort_by') == 'desc' %}selected{% endif %}>
+                Sort by Points (High → Low)
+            </option>
         </select>
 
         <div class="price-slider">
             <label class="price-label">Points:</label>
-            <input type="range" id="min_price" name="min_price" min="0" max="{{ max_point_cost }}" step="1" 
-            value="{{ request.args.get('min_price', 0) }}" oninput="document.getElementById('min_price_value').innerText = this.value">
 
-            <input type="range" id="max_price" name="max_price" min="0" max="{{ max_point_cost }}" step="1" 
-            value="{{ request.args.get('max_price', max_point_cost) }}" oninput="document.getElementById('max_price_value').innerText = this.value">
+            <input type="range" id="min_price" name="min_price"
+                min="0" max="{{ max_point_cost }}" step="1"
+                value="{{ request.args.get('min_price', 0) }}"
+                oninput="document.getElementById('min_price_value').innerText = this.value">
+
+            <input type="range" id="max_price" name="max_price"
+                min="0" max="{{ max_point_cost }}" step="1"
+                value="{{ request.args.get('max_price', max_point_cost) }}"
+                oninput="document.getElementById('max_price_value').innerText = this.value">
 
             <span class="price-value">
                 <span id="min_price_value">{{ request.args.get('min_price', 0) }}</span> - 
@@ -47,12 +66,13 @@
             </span>
         </div>
 
-        <button class="btn btn-secondary">Apply Filters</button>
+        <button type="submit" class="btn btn-secondary">Apply Filters</button>
 
         <a href="/cart" class="cart-button">
-            🛒 Cart ({{ cart_count }})
+            Cart ({{ cart_count }})
         </a>
-    </div>
+
+    </form>
 
     <!-- Product Grid -->
     <div class="product-grid">
@@ -69,12 +89,11 @@
                     <span class="points">{{ product.Point_Value }} pts</span>
 
                     {% if product.Is_Available %}
-
-                    {% if product.Prod_Quantity > 0 %}
-                        <span class="in-stock">In Stock</span>
-                    {% else %}
-                        <span class="out-stock">Out of Stock</span>
-                    {% endif %}
+                        {% if product.Prod_Quantity > 0 %}
+                            <span class="in-stock">In Stock</span>
+                        {% else %}
+                            <span class="out-stock">Out of Stock</span>
+                        {% endif %}
                     {% else %}
                         <span class="out-stock">Unavailable</span>
                     {% endif %}
