@@ -1136,7 +1136,24 @@ def driver_orders():
             GROUP BY o.Order_ID, o.Order_Status, o.Total_Points, o.OrderTime, s.Sponsor_Name
             ORDER BY o.OrderTime DESC
         """), {"uid": uid}).fetchall()
-    return render_template("driverOrders.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), orders=orders)
+
+        full_orders = []
+        for row in orders:
+            items = conn.execute(text("""
+                SELECT Item_Name, Prod_SKU, Price_Points, Line_Quantity FROM LINE_ITEMS WHERE Order_ID = :oid
+            """), {"oid": row.Order_ID}).fetchall()
+
+            full_orders.append({
+                "Order_ID": row.Order_ID,
+                "Order_Status": row.Order_Status,
+                "Total_Points": row.Total_Points,
+                "OrderTime": row.OrderTime,
+                "Sponsor_Name": row.Sponsor_Name,
+                "Item_Count": row.Item_Count,
+                "items": items
+            })
+
+    return render_template("driverOrders.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), orders=full_orders)
 
     
 @main_bp.get("/page/<name>")

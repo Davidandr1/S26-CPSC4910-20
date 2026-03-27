@@ -13,7 +13,7 @@
           <h4>Items:</h4>
           <ul>
             {% for item in order.items %}
-              <li>{{ item.Item_Name }} (x{{ item.Quantity }}) - {{ item.Point_Cost }} points each</li>
+              <li>{{ item.Item_Name }} (x{{ item.Line_Quantity }}) - {{ item.Price_Points }} points each</li>
             {% endfor %}
           </ul>
         </div>
