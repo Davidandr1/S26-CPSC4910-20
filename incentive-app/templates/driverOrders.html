@@ -7,7 +7,7 @@
     <div class="card">
       {% for order in orders %}
         <div style="border-bottom: 1px solid #ccc; padding: 10px 0;">
-          <h3>Order #{{ order.Order_ID }} - {{ order.Order_Time.strftime('%Y-%m-%d %H:%M:%S') }}</h3>
+          <h3>Order #{{ order.Order_ID }} - {{ order.OrderTime.strftime('%Y-%m-%d %H:%M:%S') }}</h3>
           <p><strong>Total Points:</strong> {{ order.Total_Points }}</p>
           <p><strong>Status:</strong> {{ order.Order_Status }}</p>
           <h4>Items:</h4>
