@@ -1031,7 +1031,7 @@ def cart_checkout():
         with engine.begin() as conn:
             # Get cart items with point costs
             cart_items = conn.execute(text("""
-                SELECT ci.Item_ID, i.Item_Name, i.Prod_SKU,
+                SELECT ci.Item_ID, i.Item_Name, i.Prod_SKU, i.Prod_Description, i.Prod_Quantity,
                        ROUND(i.Prod_UnitPrice / s.Sponsor_PointConversion) AS point_cost,
                     ci.Quantity, d.Sponsor_ID
                 FROM CART_ITEMS ci
@@ -1069,10 +1069,10 @@ def cart_checkout():
                                    error="You do not have enough points to complete this purchase.", cart_items=cart_items, total_cost=total_cost)
         
             for item in cart_items:
-                if item.Quantity > item.stock:
-                    flash(f"Not enough stock for {item.Item_Name}. Available: {item.stock}", "error")
+                if item.Quantity > item.Prod_Quantity:
+                    flash(f"Not enough stock for {item.Item_Name}. Available: {item.Prod_Quantity}", "error")
                     return render_template("cart.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), 
-                                           error=f"Not enough stock for {item.Item_Name}. Available: {item.stock}", cart_items=cart_items, total_cost=total_cost)
+                                           error=f"Not enough stock for {item.Item_Name}. Available: {item.Prod_Quantity}", cart_items=cart_items, total_cost=total_cost)
 
             # Create the order
             result = conn.execute(text("""
