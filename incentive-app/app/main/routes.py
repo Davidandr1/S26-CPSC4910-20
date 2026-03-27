@@ -1120,7 +1120,7 @@ def cart_checkout():
         return redirect(url_for("main.cart_page"))
 
 
-@main_pb.get("/driver/orders")
+@main_bp.get("/driver/orders")
 def driver_orders():
     r = require_role("Driver")
     if r:
