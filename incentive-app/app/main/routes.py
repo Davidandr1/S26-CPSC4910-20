@@ -1119,6 +1119,25 @@ def cart_checkout():
         flash(f"An error occurred while processing your order: {str(e)}", "error")
         return redirect(url_for("main.cart_page"))
 
+
+@main_pb.get("/driver/orders")
+def driver_orders():
+    r = require_role("Driver")
+    if r:
+        return r
+    uid = session["user_id"]
+    with engine.connect() as conn:
+        orders = conn.execute(text("""
+            SELECT o.Order_ID, o.Order_Status, o.Total_Points, o.OrderTime, s.Sponsor_Name, COUNT(li.Line_ID) AS Item_Count
+            FROM ORDERS o
+            JOIN SPONSORS s ON o.Sponsor_ID = s.Sponsor_ID
+            LEFT JOIN LINE_ITEMS li ON o.Order_ID = li.Order_ID
+            WHERE o.Driver_ID = :uid
+            GROUP BY o.Order_ID, o.Order_Status, o.Total_Points, o.OrderTime, s.Sponsor_Name
+            ORDER BY o.OrderTime DESC
+        """), {"uid": uid}).fetchall()
+    return render_template("driverOrders.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), orders=orders)
+
     
 @main_bp.get("/page/<name>")
 def blank_page(name):

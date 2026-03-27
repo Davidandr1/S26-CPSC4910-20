@@ -79,7 +79,7 @@
             </div>
 
             {% if user.points >= total_cost %}
-                <form method="POST" action="/cart/checkout">
+                <form method="POST" action="/cart/checkout" onsubmit="return confirmOrder(event)">
                     <button class="btn btn-primary btn-full">Confirm & Redeem</button>
                 </form>
             {% else %}
@@ -104,4 +104,16 @@
     {% endif %}
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function confirmOrder(event) {
+        if (!confirm("Are you sure you want to confirm and redeem this order?")) {
+            event.preventDefault();
+            return false;
+        }
+        return true;
+    }
+</script>
 {% endblock %}
