@@ -1027,75 +1027,99 @@ def cart_checkout():
     r = require_role("Driver")
     if r: return r
     uid = session["user_id"]
-    with engine.begin() as conn:
-        # Get cart items with point costs
-        cart_items = conn.execute(text("""
-            SELECT ci.Item_ID, i.Item_Name, i.Prod_SKU,
-                   ROUND(i.Prod_UnitPrice / s.Sponsor_PointConversion) AS point_cost,
-                   ci.Quantity, d.Sponsor_ID
-            FROM CART_ITEMS ci
-            JOIN INVENTORY i ON ci.Item_ID = i.Item_ID
-            JOIN SPONSORS s ON i.Sponsor_ID = s.Sponsor_ID
-            JOIN DRIVERS d ON d.User_ID = ci.Driver_ID
-            WHERE ci.Driver_ID = :uid
-        """), {"uid": uid}).fetchall()
+    try:
+        with engine.begin() as conn:
+            # Get cart items with point costs
+            cart_items = conn.execute(text("""
+                SELECT ci.Item_ID, i.Item_Name, i.Prod_SKU,
+                       ROUND(i.Prod_UnitPrice / s.Sponsor_PointConversion) AS point_cost,
+                    ci.Quantity, d.Sponsor_ID
+                FROM CART_ITEMS ci
+                JOIN INVENTORY i ON ci.Item_ID = i.Item_ID
+                JOIN SPONSORS s ON i.Sponsor_ID = s.Sponsor_ID
+                JOIN DRIVERS d ON d.User_ID = ci.Driver_ID
+                WHERE ci.Driver_ID = :uid
+            """), {"uid": uid}).fetchall()
 
-        if not cart_items:
-            return redirect(url_for("main.cart_page"))
-
-        total_cost = sum(i.point_cost * i.Quantity for i in cart_items)
-        sponsor_id = cart_items[0].Sponsor_ID
-
-        # Check driver has enough points
-        driver = conn.execute(text(
-            "SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"
-        ), {"uid": uid}).fetchone()
-
-        if driver.User_Points < total_cost:
-            return render_template("cart.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), 
-                                   error="You do not have enough points to complete this purchase.", cart_items=cart_items, total_cost=total_cost)
-
-        # Create the order
-        result = conn.execute(text("""
-            INSERT INTO ORDERS (Driver_ID, Sponsor_ID, Order_Status, Total_Points)
-            VALUES (:uid, :sid, 'Pending', :total)
-        """), {"uid": uid, "sid": sponsor_id, "total": total_cost})
-        order_id = result.lastrowid
-
-        # Insert line items
-        for item in cart_items:
-            stock_check = conn.execute(text(
-                "SELECT Prod_Quantity FROM INVENTORY WHERE Item_ID = :iid"
-            ), {"iid": item.Item_ID}).fetchone()
-
-            if not stock_check or stock_check.Prod_Quantity < item.Quantity:
-                flash(f"Sorry, {item.Item_Name} is out of stock.")
+            if not cart_items:
+                flash("Your cart is empty.", "error")
                 return redirect(url_for("main.cart_page"))
+
+            total_cost = sum(i.point_cost * i.Quantity for i in cart_items)
+            sponsor_id = cart_items[0].Sponsor_ID
+
+            if any(i.Sponsor_ID != sponsor_id for i in cart_items):
+                flash("All items in the cart must be from the same sponsor.", "error")
+                return render_template("cart.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), 
+                                   error="All items in the cart must be from the same sponsor.", cart_items=cart_items, total_cost=total_cost)
+
+            # Check driver has enough points
+            driver = conn.execute(text(
+                "SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"
+            ), {"uid": uid}).fetchone()
+
+            if not driver:
+                flash("Driver not found.", "error")
+                return render_template("cart.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), 
+                                       error="Driver not found.", cart_items=cart_items, total_cost=total_cost)
+
+            if driver.User_Points < total_cost:
+                flash("You do not have enough points to complete this purchase.", "error")
+                return render_template("cart.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), 
+                                   error="You do not have enough points to complete this purchase.", cart_items=cart_items, total_cost=total_cost)
+        
+            for item in cart_items:
+                if item.Quantity > item.stock:
+                    flash(f"Not enough stock for {item.Item_Name}. Available: {item.stock}", "error")
+                    return render_template("cart.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), 
+                                           error=f"Not enough stock for {item.Item_Name}. Available: {item.stock}", cart_items=cart_items, total_cost=total_cost)
+
+            # Create the order
+            result = conn.execute(text("""
+                INSERT INTO ORDERS (Driver_ID, Sponsor_ID, Order_Status, Total_Points)
+                VALUES (:uid, :sid, 'Pending', :total)
+            """), {"uid": uid, "sid": sponsor_id, "total": total_cost})
+            order_id = result.lastrowid
+
+            # Insert line items
+            for item in cart_items:
+                stock_check = conn.execute(text(
+                    "SELECT Prod_Quantity FROM INVENTORY WHERE Item_ID = :iid"
+                ), {"iid": item.Item_ID}).fetchone()
+
+                if not stock_check or stock_check.Prod_Quantity < item.Quantity:
+                    flash(f"Sorry, {item.Item_Name} is out of stock.")
+                    return redirect(url_for("main.cart_page"))
             
+                conn.execute(text("""
+                    INSERT INTO LINE_ITEMS (Item_ID, Order_ID, Prod_SKU, Item_Name, Price_Points, Line_Quantity)
+                    VALUES (:iid, :oid, :sku, :name, :pts, :qty)
+                """), {"iid": item.Item_ID, "oid": order_id, "sku": item.Prod_SKU,
+                      "name": item.Item_Name, "pts": item.point_cost, "qty": item.Quantity})
+
+            # Deduct points from driver
             conn.execute(text("""
-                INSERT INTO LINE_ITEMS (Item_ID, Order_ID, Prod_SKU, Item_Name, Price_Points, Line_Quantity)
-                VALUES (:iid, :oid, :sku, :name, :pts, :qty)
-            """), {"iid": item.Item_ID, "oid": order_id, "sku": item.Prod_SKU,
-                  "name": item.Item_Name, "pts": item.point_cost, "qty": item.Quantity})
+                UPDATE DRIVERS SET User_Points = User_Points - :total WHERE User_ID = :uid
+            """), {"total": total_cost, "uid": uid})
 
-        # Deduct points from driver
-        conn.execute(text("""
-            UPDATE DRIVERS SET User_Points = User_Points - :total WHERE User_ID = :uid
-        """), {"total": total_cost, "uid": uid})
+            # Log the point transaction
+            conn.execute(text("""
+                INSERT INTO POINT_TRANSACTIONS (Driver_ID, Actor_User_ID, Points_Changed, Reason, Transaction_Time)
+                VALUES (:uid, :sid, :pts, 'Order placed', :time)
+            """), {"uid": uid, "sid": sponsor_id, "pts": -total_cost, "time": datetime.now()})
 
-        # Log the point transaction
-        conn.execute(text("""
-            INSERT INTO POINT_TRANSACTIONS (Driver_ID, Sponsor_ID, Points_Changed, Reason)
-            VALUES (:uid, :sid, :pts, 'Order placed')
-        """), {"uid": uid, "sid": sponsor_id, "pts": -total_cost})
+            # Clear the cart
+            conn.execute(text(
+                "DELETE FROM CART_ITEMS WHERE Driver_ID = :uid"
+            ), {"uid": uid})
 
-        # Clear the cart
-        conn.execute(text(
-            "DELETE FROM CART_ITEMS WHERE Driver_ID = :uid"
-        ), {"uid": uid})
+        flash("Your order has been placed successfully!", "success")
+        return redirect(url_for("main.driver_home"))
+    except Exception as e:
+        flash(f"An error occurred while processing your order: {str(e)}", "error")
+        return redirect(url_for("main.cart_page"))
 
-    return redirect(url_for("main.driver_home"))
-
+    
 @main_bp.get("/page/<name>")
 def blank_page(name):
     r = require_login_redirect()
