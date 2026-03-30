@@ -8,7 +8,9 @@
   <div class="card mt-3">
     <div class="card-body">
 
-        <h4>{{ app.App_FName }} {{app.App_LNAME }}</h4>
+      {% if app_type == "new_app" %}
+        <h4>{{ app.first_name }} {{app.last_name }}</h4>
+        <p><strong>Application Type:</strong>New Driver</p>
         <p><strong>Username:</strong>{{ app.App_Username }}</p>
         <p><strong>Email:</strong> {{ app.App_Email }}</p>
         <p><strong>Phone Number:</strong> {{ app.App_Phone_Num }}</p>
@@ -21,15 +23,31 @@
         {% if app.App_Status == "Denied" and app.Denial_Reason %}
           <p><strong>Denial Reason:</strong> {{ app.Denial_Reason }}</p>
         {% endif %}
+      {% elif app_type == "existing_app" %}
+        <h4>{{ app.first_name }} {{app.last_name }}</h4>
+        <p><strong>Application Type:</strong>Existing Driver - New Sponsor</p>
+        <p><strong>Application Time:</strong> {{app.Application_Time }}</p>
+        <p><strong>Driver ID:</strong>{{ app.Driver_ID }}</p>
+        <p><strong>Sponsor ID:</strong>{{ app.Sponsor_ID }}</p>
+        <p><strong>Application Status:</strong> {{app.App_Status }}</p>
+        {% if session.user_type == "Admin" %}
+          <p><strong>Sponsor ID:</strong> {{app.Sponsor_ID }}</p>
+        {% endif %}
+        {% if app.App_Status == "Denied" and app.Denial_Reason %}
+          <p><strong>Denial Reason:</strong> {{ app.Denial_Reason }}</p>
+        {% endif %}
+      {% else %}
+        <p><em>Unknown application type.</em></p>
+      {% endif %}
 
         <hr>
-        <form action="{{url_for('main.evaluate_applications', app_id=app.Application_ID) }}"
+        <form action="{{url_for('main.evaluate_applications', app_type=app.app_type, app_id=(app.Application_ID if app_type == 'new_app' else app.Driver_Sponsor_App_ID)) }}"
             method="post" style="display:inline;">
           <input type="hidden" name="decision" value="Approved">
           <button class="btn btn-success">Approve</button>
         </form>
 
-        <form action="{{url_for('main.evaluate_applications', app_id=app.Application_ID) }}"
+        <form action="{{url_for('main.evaluate_applications', app_type=app.app_type, app_id=(app.Application_ID if app_type == 'new_app' else app.Driver_Sponsor_App_ID)) }}"
             method="post" style="display:inline;">
           <input type="hidden" name="decision" value="Denied">
           <div class="mb-2">
@@ -41,7 +59,7 @@
           </div>
           <button class="btn btn-danger">Deny</button>
         </form>
-        <a href="{{url_for('main.applications_list') }}" class="btn btn-secondary ms-2">
+        <a href="{{url_for('main.applications_list', app_type=app.app_type) }}" class="btn btn-secondary ms-2">
             Back to Applications
         </a>
     </div>
