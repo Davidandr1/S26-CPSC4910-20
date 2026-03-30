@@ -1429,12 +1429,13 @@ def applications_list():
             apps = conn.execute(text(f""" SELECT a.Application_ID, a.App_Status, 'new_app' AS app_type, a.App_FName AS first_name, a.App_LNAME AS last_name, s.Sponsor_Name, a.App_Time, a.App_Status 
                                      FROM APPLICATIONS a
                                      JOIN SPONSORS s ON a.App_Sponsor_ID = s.Sponsor_ID
-                                     WHERE a.App_Sponsor_ID = :sid AND {app_filter_statement} ORDER BY a.App_Time
+                                     WHERE a.App_Sponsor_ID = :sid AND {app_filter_statement} 
                                      UNION ALL 
                                      SELECT dsa.Driver_Sponsor_App_ID, dsa.Application_Status as App_Status, 'existing_app' AS app_type, u.User_FName AS first_name, u.User_LNAME AS last_name, s.Sponsor_Name, dsa.Application_Time, dsa.Application_Status 
                                      FROM DRIVER_SPONSOR_APPLICATIONS dsa
                                      JOIN USERS u ON dsa.Driver_ID = u.User_ID
-                                     JOIN SPONSORS s ON dsa.Sponsor_ID = s.Sponsor_ID WHERE dsa.Sponsor_ID = :sid AND {multi_filter_statement} """),
+                                     JOIN SPONSORS s ON dsa.Sponsor_ID = s.Sponsor_ID WHERE dsa.Sponsor_ID = :sid AND {multi_filter_statement} 
+                                     ORDER BY a.App_Time"""),
                                 params | {"sid": session["sponsor_id"]}).fetchall()
         else:
             apps = conn.execute(text(f""" SELECT a.Application_ID, a.App_Status, 'new_app' AS app_type, a.App_FName AS first_name, a.App_LNAME AS last_name, s.Sponsor_Name, a.App_Time, a.App_Status 
@@ -1443,6 +1444,7 @@ def applications_list():
                                      WHERE {app_filter_statement} ORDER BY a.App_Time
                                      UNION ALL 
                                      SELECT dsa.Driver_Sponsor_App_ID, dsa.Application_Status AS App_Status, 'existing_app' AS app_type, u.User_FName AS first_name, u.User_LNAME AS last_name, s.Sponsor_Name, dsa.Application_Time
+                                     FROM DRIVER_SPONSOR_APPLICATIONS dsa
                                      JOIN USERS u ON dsa.Driver_ID = u.User_ID
                                      JOIN SPONSORS s ON dsa.Sponsor_ID = s.Sponsor_ID WHERE {multi_filter_statement} """),
                                 params ).fetchall()
