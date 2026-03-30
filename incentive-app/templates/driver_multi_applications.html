@@ -32,13 +32,13 @@
 <div class="card">
     <h2>Apply to Another Sponsor</h2>
     <p>You can apply to join another sponsor, but you will need to wait for approval before you can earn points with that sponsor.</p>
-    {% if available_sponsors|length == 0 %}
+    {% if sponsors|length == 0 %}
         <p><em>No other sponsors available to apply to at this time.</em></p>
     {% else %}
-        <form method="POST" action="{{ url_for('main.apply_multi_applications') }}">
+        <form method="POST" action="{{ url_for('main.apply_multi_application') }}">
             <label for="sponsor_id">Select Sponsor:</label>
             <select name="sponsor_id" id="sponsor_id">
-                {% for s in available_sponsors %}
+                {% for s in sponsors %}
                 <option value="{{ s.Sponsor_ID }}">{{ s.Sponsor_Name }}</option>
                 {% endfor %}
             </select>
@@ -50,7 +50,7 @@
 <div class="card">
     <h2>Pending Applications</h2>
     <p>These are your pending applications to join additional sponsors. You will be notified when they are approved or rejected.</p>
-    {% if pending_applications|length == 0 %}
+    {% if existing_applications|length == 0 %}
         <p><em>You have no pending applications.</em></p>
     {% else %}
         <table class="table">
@@ -61,7 +61,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for app in pending_applications %}
+                {% for app in existing_applications %}
                 <tr>
                     <td>{{ app.Sponsor_Name }}</td>
                     <td>{{ app.Application_Time }}</td>

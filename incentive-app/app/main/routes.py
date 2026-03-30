@@ -1533,6 +1533,7 @@ def apply_multi_application_page():
     r = require_role("Driver")
     if r:
         return r
+    active_sponsor_id = session.get("active_sponsor_id")
     with engine.connect() as conn:
         sponsors = conn.execute(text("""
             SELECT s.Sponsor_ID, s.Sponsor_Name FROM SPONSORS s WHERE s.Sponsor_ID NOT IN (
@@ -1542,7 +1543,7 @@ def apply_multi_application_page():
         existing_applications = conn.execute(text("""
             SELECT dsa.Sponsor_ID, s.Sponsor_Name FROM DRIVER_SPONSOR_APPLICATIONS dsa JOIN SPONSORS s ON dsa.Sponsor_ID = s.Sponsor_ID WHERE dsa.Driver_ID = :did AND dsa.Application_Status = 'Pending'
         """), {"did": session["user_id"]}).fetchall()
-    return render_template("driver_multi_applications.html", sponsors=sponsors, existing_applications=existing_applications, nav_pages=NAV_PAGES, logged_in=is_logged_in())
+    return render_template("driver_multi_applications.html", sponsors=sponsors, existing_applications=existing_applications, active_sponsor_id=active_sponsor_id, nav_pages=NAV_PAGES, logged_in=is_logged_in())
 
 @main_bp.post("/driver/multi-applications/apply")
 def apply_multi_application():
@@ -1560,13 +1561,13 @@ def apply_multi_application():
         """), {"did": session["user_id"], "sid": sponsor_id}).fetchone()
         if existing_app:
             flash("You have already applied to this sponsor.", "error")
-            return redirect(url_for("main.driver_multi_applications"))
+            return redirect(url_for("main.apply_multi_application_page"))
         existing_user = conn.execute(text("""
             SELECT Driver_ID FROM DRIVER_SPONSORS WHERE Driver_ID = :did AND Sponsor_ID = :sid
         """), {"did": session["user_id"], "sid": sponsor_id}).fetchone()
         if existing_user:
             flash("You are already a driver for this sponsor.", "error")
-            return redirect(url_for("main.driver_multi_applications"))
+            return redirect(url_for("main.apply_multi_application_page"))
         
         conn.execute(text("""
             INSERT INTO DRIVER_SPONSOR_APPLICATIONS (Driver_ID, Sponsor_ID, Application_Status, Application_Time)
@@ -1574,7 +1575,7 @@ def apply_multi_application():
         """), {"did": session["user_id"], "sid": sponsor_id, "time": datetime.now()})
     
     flash("Your application has been submitted.", "success")
-    return redirect(url_for("main.driver_multi_applications"))
+    return redirect(url_for("main.apply_multi_application_page"))
 
 
 
