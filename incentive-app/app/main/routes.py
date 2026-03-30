@@ -1222,39 +1222,44 @@ def applications_list():
         multi_filter_statement = " AND ".join(multiFilters) if multiFilters else "1=1"
                 
         if session["user_type"] == "Sponsor":
-            apps = conn.execute(text(f""" SELECT a.Application_ID, a.App_Status, 'new_app' AS app_type, a.App_FName, a.App_LNAME, s.Sponsor_Name, a.App_Time, a.App_Status FROM APPLICATIONS a
+            apps = conn.execute(text(f""" SELECT a.Application_ID, a.App_Status, 'new_app' AS app_type, a.App_FName AS first_name, a.App_LNAME AS last_name, s.Sponsor_Name, a.App_Time, a.App_Status 
                                      FROM APPLICATIONS a
                                      JOIN SPONSORS s ON a.App_Sponsor_ID = s.Sponsor_ID
                                      WHERE a.App_Sponsor_ID = :sid AND {app_filter_statement} ORDER BY a.App_Time
                                      UNION ALL 
-                                     SELECT dsa.Driver_Sponsor_App_ID, dsa.Application_Status, 'existing_app' AS app_type, u.User_FName, u.User_LNAME, s.Sponsor_Name, dsa.Application_Time, dsa.Application_Status FROM DRIVER_SPONSOR_APPLICATIONS dsa
+                                     SELECT dsa.Driver_Sponsor_App_ID, dsa.Application_Status as App_Status, 'existing_app' AS app_type, u.User_FName AS first_name, u.User_LNAME AS last_name, s.Sponsor_Name, dsa.Application_Time, dsa.Application_Status 
+                                     FROM DRIVER_SPONSOR_APPLICATIONS dsa
                                      JOIN USERS u ON dsa.Driver_ID = u.User_ID
                                      JOIN SPONSORS s ON dsa.Sponsor_ID = s.Sponsor_ID WHERE dsa.Sponsor_ID = :sid AND {multi_filter_statement} """),
                                 params | {"sid": session["sponsor_id"]}).fetchall()
         else:
-            apps = conn.execute(text(f""" SELECT a.Application_ID, a.App_Status, 'new_app' AS app_type, a.App_FName, a.App_LNAME, s.Sponsor_Name, a.App_Time, a.App_Status FROM APPLICATIONS a
+            apps = conn.execute(text(f""" SELECT a.Application_ID, a.App_Status, 'new_app' AS app_type, a.App_FName AS first_name, a.App_LNAME AS last_name, s.Sponsor_Name, a.App_Time, a.App_Status 
                                      FROM APPLICATIONS a
                                      JOIN SPONSORS s ON a.App_Sponsor_ID = s.Sponsor_ID
                                      WHERE {app_filter_statement} ORDER BY a.App_Time
                                      UNION ALL 
-                                     SELECT dsa.Driver_Sponsor_App_ID, dsa.Application_Status, 'existing_app' AS app_type, u.User_FName, u.User_LNAME, s.Sponsor_Name, dsa.Application_Time, dsa.Application_Status FROM DRIVER_SPONSOR_APPLICATIONS dsa
+                                     SELECT dsa.Driver_Sponsor_App_ID, dsa.Application_Status AS App_Status, 'existing_app' AS app_type, u.User_FName AS first_name, u.User_LNAME AS last_name, s.Sponsor_Name, dsa.Application_Time
                                      JOIN USERS u ON dsa.Driver_ID = u.User_ID
                                      JOIN SPONSORS s ON dsa.Sponsor_ID = s.Sponsor_ID WHERE {multi_filter_statement} """),
                                 params ).fetchall()
     return render_template("applications_list.html", apps=apps, nav_pages = NAV_PAGES, logged_in=is_logged_in())
 
-@main_bp.get("/applications/<int:app_id>")
-def application_details(app_id):
+@main_bp.get("/applications/<string:app_type>/<int:app_id>")
+def application_details(app_type, app_id):
     r = require_role("Sponsor")
     if r:
         r2 = require_role("Admin")
         if r2:
             return r2
     with engine.connect() as conn:
-        app = conn.execute(text(""" SELECT Application_ID, App_Sponsor_ID, App_Username,App_Status, App_FName, App_LNAME, App_Email, App_Phone_Num,
-                                License_Num, App_Time, Denial_Reason FROM APPLICATIONS
-                                 WHERE Application_ID = :aid"""),
-                               {"aid": app_id}).fetchone()
+        if app_type == "new_app":
+            app = conn.execute(text(""" SELECT Application_ID, App_Sponsor_ID, App_Username,App_Status, App_FName AS first_name, App_LNAME AS last_name, App_Email, App_Phone_Num,
+                                    License_Num, App_Time, Denial_Reason FROM APPLICATIONS
+                                    WHERE Application_ID = :aid"""),
+                                    {"aid": app_id}).fetchone()
+        elif app_type == "existing_app":
+            app = conn.execute(text(""" SELECT dsa.Driver_Sponsor_App_ID, dsa.Driver_ID, dsa.Sponsor_ID, dsa.Application_Status, dsa.Application_Time, dsa.Denial_Reason, u.User_FName AS first_name, u.User_LName AS last_name 
+                                    FROM DRIVER_SPONSOR_APPLICATIONS dsa JOIN USERS u ON dsa.Driver_ID = u.User_ID WHERE Driver_Sponsor_App_ID = :aid"""), {"aid": app_id}).fetchone()
     if not app:
         return "Application not found", 404
 
@@ -1263,7 +1268,7 @@ def application_details(app_id):
 
     return render_template(
         "application_detail.html",
-        app=app, nav_pages=NAV_PAGES, logged_in=is_logged_in())
+        app=app, app_type=app_type, nav_pages=NAV_PAGES, logged_in=is_logged_in())
 
 @main_bp.post("/applications/<string:app_type>/<int:app_id>/evaluate")
 def evaluate_applications(app_type, app_id):
@@ -1294,7 +1299,7 @@ def evaluate_applications(app_type, app_id):
             conn.execute(text("""UPDATE APPLICATIONS SET App_Status = :status, Denial_Reason = :reason WHERE Application_ID = :aid"""), {"status": decision, "reason": reason if decision == "Denied" else None, "aid": app_id})
             if decision == "Approved":
                 conn.execute(text("""DELETE FROM APPLICATIONS WHERE Application_ID = :aid"""), {"aid": app_id})
-        if app_type == "existing_app":
+        elif app_type == "existing_app":
             app = conn.execute(text(""" SELECT dsa.Driver_Sponsor_App_ID, dsa.Driver_ID, dsa.Sponsor_ID, dsa.Application_Status, dsa.Application_Time, dsa.Denial_Reason, u.User_FName, u.User_LName 
                                     FROM DRIVER_SPONSOR_APPLICATIONS dsa JOIN USERS u ON dsa.Driver_ID = u.User_ID WHERE Driver_Sponsor_App_ID = :aid"""), {"aid": app_id}).fetchone()
             if not app:
@@ -1313,27 +1318,6 @@ def evaluate_applications(app_type, app_id):
             if decision == "Approved":
                 conn.execute(text("""DELETE FROM DRIVER_SPONSOR_APPLICATIONS WHERE Driver_Sponsor_App_ID = :aid"""), {"aid": app_id})
     return redirect(url_for("main.applications_list"))
-
-
-@main_bp.get("/driver/multi-applications")
-def driver_multi_applications():
-    r = require_role("Sponsor")
-    if r:
-        r2 = require_role("Admin")
-        if r2:
-            return r2
-    with engine.connect() as conn:
-        if session["user_type"] == "Sponsor":
-            apps = conn.execute(text(""" SELECT ds.Driver_Sponsor_App_ID, ds.Driver_ID, ds.Sponsor_ID, s.Sponsor_Name, ds.Application_Status, ds.Application_Time
-                                    , u.User_FName, u.User_LName FROM DRIVER_SPONSOR_APPLICATIONS ds
-                                        JOIN SPONSORS s ON ds.Sponsor_ID = s.Sponsor_ID
-                                        JOIN USERS u ON ds.Driver_ID = u.User_ID WHERE ds.Sponsor_ID = :sid"""), {"sid": session["sponsor_id"]}).fetchall()
-        else:
-            apps = conn.execute(text(""" SELECT ds.Driver_Sponsor_App_ID, ds.Driver_ID, ds.Sponsor_ID, s.Sponsor_Name, ds.Application_Status, ds.Application_Time
-                                    , u.User_FName, u.User_LName FROM DRIVER_SPONSOR_APPLICATIONS ds
-                                        JOIN SPONSORS s ON ds.Sponsor_ID = s.Sponsor_ID
-                                        JOIN USERS u ON ds.Driver_ID = u.User_ID""")).fetchall()
-    return render_template("driver_multi_applications.html", apps=apps, nav_pages=NAV_PAGES, logged_in=is_logged_in())
 
 
 @main_bp.get("/driver/multi-applications/apply")

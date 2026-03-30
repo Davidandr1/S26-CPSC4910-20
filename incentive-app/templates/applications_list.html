@@ -55,6 +55,7 @@
 			<thead>
 				<tr>
 					<th>Application ID	</th>
+					<th>Type </th>
 					<th>First Name	</th>
 					<th>Last Name	</th>
 					<th>Status	</th>
@@ -64,12 +65,19 @@
 			<tbody>
 				{% for a in apps %}
 				<tr>
-					<td>{{ a.Application_ID }}</td>
-					<td>{{ a.App_FName }}</td>
-					<td>{{ a.App_LNAME }}</td>
+					<td>{{ a.app_ID }}</td>
+					{% if a.app_type == "new_app" %}
+						<td>New Driver Application</td>
+					{% elif a.app_type == "existing_app" %}
+						<td>Existing Driver - New Sponsor</td>
+					{% else %}
+						<td>Unknown</td>
+					{% endif %}
+					<td>{{ a.first_name }}</td>
+					<td>{{ a.last_name }}</td>
 					<td>{{ a.App_Status }}</td>
 					<td>
-						<a href="{{ url_for('main.application_details', app_id=a.Application_ID) }}"
+						<a href="{{ url_for('main.application_details', app_id=a.Application_ID, app_type=a.app_type) }}"
 						   class="btn btn-primary btn-sm">
 						   View
 						</a> 
