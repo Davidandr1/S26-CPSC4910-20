@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% set title = "Apply to Another Sponsor" %}
+{% block content %}
+
+<div class ="card">
+    <h3>Your Sponsors</h3>
+    <p>You are currently associated with the following sponsors.</p>
+
+    {% if sponsors|length == 0 %}
+        <p><em>You are not currently associated with any sponsors.</em></p>
+    {% else %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Sponsor Name</th>
+                    <th>Your Points</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sponsors %}
+                <tr>
+                    <td>{{ s.Sponsor_Name }}
+                        {% if s.Sponsor_ID == active_sponsor_id %} (Active){% endif %}</td>
+                    <td>{{ s.Driver_Points }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Apply to Another Sponsor</h2>
+    <p>You can apply to join another sponsor, but you will need to wait for approval before you can earn points with that sponsor.</p>
+    {% if available_sponsors|length == 0 %}
+        <p><em>No other sponsors available to apply to at this time.</em></p>
+    {% else %}
+        <form method="POST" action="{{ url_for('main.apply_multi_applications') }}">
+            <label for="sponsor_id">Select Sponsor:</label>
+            <select name="sponsor_id" id="sponsor_id">
+                {% for s in available_sponsors %}
+                <option value="{{ s.Sponsor_ID }}">{{ s.Sponsor_Name }}</option>
+                {% endfor %}
+            </select>
+            <button class="btn btn--primary" type="submit">Apply</button>
+        </form>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Pending Applications</h2>
+    <p>These are your pending applications to join additional sponsors. You will be notified when they are approved or rejected.</p>
+    {% if pending_applications|length == 0 %}
+        <p><em>You have no pending applications.</em></p>
+    {% else %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Sponsor Name</th>
+                    <th>Application Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in pending_applications %}
+                <tr>
+                    <td>{{ app.Sponsor_Name }}</td>
+                    <td>{{ app.Application_Time }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+
+<a class="btn btn-secondary" href="{{ url_for('main.driver_home') }}">Back to Driver Home</a>
+
+{% endblock %}
