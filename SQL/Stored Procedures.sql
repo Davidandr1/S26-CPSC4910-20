@@ -31,8 +31,8 @@ BEGIN
         SET @new_uid = LAST_INSERT_ID();
         INSERT INTO DRIVERS (User_ID, License_Num, Is_Active) VALUES
         (@new_uid, NEW.License_Num, TRUE);
-		INSERT INTO DRIVER_SPONSORS (Driver_ID, Sponsor_ID, Is_Active, Driver_Points) VALUES
-		(@new_uid, NEW.App_Sponsor_ID, TRUE, 0);
+		INSERT INTO DRIVER_SPONSORS (Driver_ID, Sponsor_ID, Created_At, Is_Active, Driver_Points) VALUES
+        (@new_uid, NEW.App_Sponsor_ID, CURRENT_TIMESTAMP, TRUE, 0);
 	END IF;
 END$$
 

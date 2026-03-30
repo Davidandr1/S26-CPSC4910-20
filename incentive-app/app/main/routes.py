@@ -68,13 +68,13 @@ def fetch_current_user():
         sponsor_name = None
         if u.User_Type == "Driver":
             row = conn.execute(text("""
-                SELECT s.Sponsor_Name, d.User_Points
-                FROM DRIVERS d
-                JOIN SPONSORS s ON s.Sponsor_ID = d.Sponsor_ID
-                WHERE d.User_ID = :id
-            """), {"id": user_id}).fetchone()
+                SELECT s.Sponsor_Name, ds.Driver_Points
+                FROM DRIVER_SPONSORS ds
+                JOIN SPONSORS s ON s.Sponsor_ID = ds.Sponsor_ID
+                WHERE ds.Driver_ID = :id AND ds.Is_Active = TRUE AND ds.Sponsor_ID = :sid
+            """), {"id": user_id, "sid": session.get("active_sponsor_id")}).fetchone()
             sponsor_name = row.Sponsor_Name if row else None
-            user["points"] = row.User_Points if row and hasattr(row, 'User_Points') else 0
+            user["points"] = row.Driver_Points if row and hasattr(row, 'Driver_Points') else 0
 
         elif u.User_Type == "Sponsor":
             row = conn.execute(text("""
@@ -171,9 +171,9 @@ def driver_points_api():
     driver_id = session.get("user_id")
     active_sponsor_id = session.get("active_sponsor_id")
     with engine.connect() as conn:
-        row = conn.execute(text("SELECT User_Points FROM DRIVERS WHERE User_ID = :uid AND Sponsor_ID = :sid"), {"uid": driver_id, "sid": active_sponsor_id}).fetchone()
+        row = conn.execute(text("SELECT Driver_Points FROM DRIVER_SPONSORS WHERE Driver_ID = :uid AND Sponsor_ID = :sid"), {"uid": driver_id, "sid": active_sponsor_id}).fetchone()
 
-    points = row.User_Points if row else 0
+    points = row.Driver_Points if row else 0
     return jsonify({"points": points})
 
 
@@ -196,10 +196,10 @@ def sponsor_home():
     events = []
     with engine.connect() as conn:
         drivers = conn.execute(text("""
-            SELECT d.User_ID, d.User_Points, u.User_FName, u.User_LName, u.User_Email, u.User_Phone_Num
-            FROM DRIVERS d
-            JOIN USERS u ON d.User_ID = u.User_ID
-            WHERE d.Sponsor_ID = :sid AND d.Is_Active = TRUE
+            SELECT ds.Driver_ID, ds.Driver_Points, u.User_FName, u.User_LName, u.User_Email, u.User_Phone_Num
+            FROM DRIVER_SPONSORS ds
+            JOIN USERS u ON ds.Driver_ID = u.User_ID
+            WHERE ds.Sponsor_ID = :sid AND ds.Is_Active = TRUE
         """), {"sid": sponsor_id}).fetchall()
 
         # Load sponsor-created point events (presets)
@@ -223,10 +223,10 @@ def sponsor_points_page():
         return "Sponsor ID not found in session", 400
     with engine.connect() as conn:
         drivers = conn.execute(text("""
-            SELECT d.User_ID, d.User_Points, u.User_FName, u.User_LName, u.User_Email
-            FROM DRIVERS d
-            JOIN USERS u ON d.User_ID = u.User_ID
-            WHERE d.Sponsor_ID = :sid AND d.Is_Active = TRUE
+            SELECT ds.Driver_ID, ds.Driver_Points, u.User_FName, u.User_LName, u.User_Email
+            FROM DRIVER_SPONSORS ds
+            JOIN USERS u ON ds.Driver_ID = u.User_ID
+            WHERE ds.Sponsor_ID = :sid AND ds.Is_Active = TRUE
         """), {"sid": sponsor_id}).fetchall()
 
         events = conn.execute(text("SELECT Event_ID, Event_Name, Event_Points FROM POINT_EVENTS WHERE Sponsor_ID = :sid ORDER BY Created_At DESC"), {"sid": sponsor_id}).fetchall()
@@ -249,7 +249,7 @@ def sponsor_events_page():
         return "Sponsor ID not found in session", 400
     
     with engine.connect() as conn:
-        drivers = conn.execute(text("""SELECT d.User_ID, User_FName, User_LName FROM DRIVERS d JOIN USERS u ON d.User_ID = u.User_ID WHERE d.Sponsor_ID = :sid AND d.Is_Active = TRUE"""), {"sid": sponsor_id}).fetchall()
+        drivers = conn.execute(text("""SELECT ds.Driver_ID, User_FName, User_LName FROM DRIVER_SPONSORS ds JOIN USERS u ON ds.Driver_ID = u.User_ID WHERE ds.Sponsor_ID = :sid AND ds.Is_Active = TRUE"""), {"sid": sponsor_id}).fetchall()
         events = conn.execute(text("SELECT Event_ID, Event_Name, Event_Points, Created_At FROM POINT_EVENTS WHERE Sponsor_ID = :sid ORDER BY Created_At DESC"), {"sid": sponsor_id}).fetchall()
     return render_template('sponsorEvents.html', nav_pages=NAV_PAGES, logged_in=is_logged_in(), drivers=drivers, events=events)
 
@@ -484,12 +484,12 @@ def sponsor_adjust_points():
         sponsor_cap = sponsor_info.Sponsor_MaxPoints if sponsor_info else 3000000
         for did in driver_ids:
             # verify driver belongs to sponsor
-            drv = conn.execute(text("SELECT User_ID, User_Points FROM DRIVERS WHERE User_ID = :did AND Sponsor_ID = :sid"), {"did": did, "sid": sponsor_id}).fetchone()
+            drv = conn.execute(text("SELECT Driver_ID, Driver_Points FROM DRIVER_SPONSORS WHERE Driver_ID = :did AND Sponsor_ID = :sid"), {"did": did, "sid": sponsor_id}).fetchone()
             if not drv:
                 continue
             
             # Check current points to avoid negative balance
-            driverPoints = drv.User_Points if drv and hasattr(drv, 'User_Points') else 0
+            driverPoints = drv.Driver_Points if drv and hasattr(drv, 'Driver_Points') else 0
             new_points = driverPoints + pts
             if new_points > sponsor_cap:
                 new_points = sponsor_cap
@@ -503,11 +503,11 @@ def sponsor_adjust_points():
                 skipped_at_cap += 1
             
             # Update points (no transaction logging here)
-            conn.execute(text("UPDATE DRIVERS SET User_Points = User_Points + :pts WHERE USER_ID = :did"), {"pts": point_change, "did": did})
+            conn.execute(text("UPDATE DRIVER_SPONSORS SET Driver_Points = Driver_Points + :pts WHERE DRIVER_ID = :did AND SPONSOR_ID = :sid"), {"pts": point_change, "did": did, "sid": sponsor_id})
             updated += 1
 
-            conn.execute(text("""INSERT INTO POINT_TRANSACTIONS (Driver_ID, Actor_User_ID, Points_Changed, Reason, Transaction_Time) VALUES (:did, :actor_id, :pts, :reason, CURRENT_TIMESTAMP)"""),
-                            {"did": did, "actor_id": current_user, "pts": point_change, "reason": reason})
+            conn.execute(text("""INSERT INTO POINT_TRANSACTIONS (Driver_ID, Sponsor_ID, Actor_User_ID, Points_Changed, Reason, Transaction_Time) VALUES (:did, :sid, :actor_id, :pts, :reason, CURRENT_TIMESTAMP)"""),
+                            {"did": did, "sid": sponsor_id, "actor_id": current_user, "pts": point_change, "reason": reason})
 
     if updated == 0:
         msg = 'No drivers were updated; verify selection and sponsor association.'
@@ -833,16 +833,16 @@ def admin_users():
         'type': 'User_Type',
         'email': 'User_Email',
         'created': 'User_Creation',
-        'points': 'd.User_Points'
+        'points': 'ds.Driver_Points'
     }
     order_by = allowed.get(sort, 'Username')
 
     with engine.connect() as conn:
         users = conn.execute(text(f'''
             SELECT u.User_ID, u.Username, u.User_FName, u.User_LNAME, u.User_Email, u.User_Phone_Num, u.User_Type, u.User_Creation,
-                   d.User_Points
+                   ds.Driver_Points
             FROM USERS u
-            LEFT JOIN DRIVERS d ON d.User_ID = u.User_ID
+            LEFT JOIN DRIVER_SPONSORS ds ON ds.Driver_ID = u.User_ID
             ORDER BY {order_by}
         ''')).fetchall()
 
@@ -900,14 +900,7 @@ def storefront():
     with engine.connect() as conn:
 
         # Get driver's sponsor
-        sponsor_row = conn.execute(text("""
-            SELECT Sponsor_ID FROM DRIVERS WHERE User_ID = :uid
-        """), {"uid": uid}).fetchone()
-
-        if not sponsor_row:
-            return "Sponsor not found", 400
-
-        sponsor_id = sponsor_row.Sponsor_ID
+        sponsor_id = session.get("active_sponsor_id")
         params["sid"] = sponsor_id
 
         # Main product query
@@ -947,17 +940,17 @@ def storefront():
 
         # User points
         points_row = conn.execute(text("""
-            SELECT User_Points FROM DRIVERS WHERE User_ID = :uid
-        """), {"uid": uid}).fetchone()
+            SELECT Driver_Points FROM DRIVER_SPONSORS WHERE Driver_ID = :uid AND Sponsor_ID = :sid
+        """), {"uid": uid, "sid": sponsor_id}).fetchone()
 
-        user_points = points_row.User_Points if points_row else 0
+        user_points = points_row.Driver_Points if points_row else 0
 
         # Cart count
         cart_row = conn.execute(text("""
             SELECT COALESCE(SUM(Quantity), 0) AS cnt
             FROM CART_ITEMS
-            WHERE Driver_ID = :uid
-        """), {"uid": uid}).fetchone()
+            WHERE Driver_ID = :uid AND Sponsor_ID = :sid
+        """), {"uid": uid, "sid": sponsor_id}).fetchone()
 
         cart_count = cart_row.cnt if cart_row else 0
 
@@ -980,6 +973,7 @@ def cart_page():
     r = require_role("Driver")
     if r: return r
     user = fetch_current_user()
+    active_sponsor_id = session.get("active_sponsor_id")
     with engine.connect() as conn:
         cart_items = conn.execute(text("""
             SELECT ci.Item_ID as id, i.Item_Name as name, i.Prod_Description as description,
@@ -988,8 +982,8 @@ def cart_page():
             FROM CART_ITEMS ci
             JOIN INVENTORY i ON ci.Item_ID = i.Item_ID
             JOIN SPONSORS s ON i.Sponsor_ID = s.Sponsor_ID
-            WHERE ci.Driver_ID = :uid
-        """), {"uid": session["user_id"]}).fetchall()
+            WHERE ci.Driver_ID = :uid AND i.Sponsor_ID = :sid
+        """), {"uid": session["user_id"], "sid": active_sponsor_id}).fetchall()
         total_cost = sum(i.point_cost * i.quantity for i in cart_items)
     return render_template("cart.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(),
                            user=user, cart_items=cart_items, total_cost=total_cost)
@@ -1000,16 +994,17 @@ def cart_page():
 def cart_add(item_id):
     r = require_role("Driver")
     if r: return r
+    active_sponsor_id = session.get("active_sponsor_id")
     with engine.begin() as conn:
         existing = conn.execute(text(
-            "SELECT Quantity FROM CART_ITEMS WHERE Driver_ID=:uid AND Item_ID=:iid"
-        ), {"uid": session["user_id"], "iid": item_id}).fetchone()
+            "SELECT Quantity FROM CART_ITEMS WHERE Driver_ID=:uid AND Item_ID=:iid AND Sponsor_ID=:sid"
+        ), {"uid": session["user_id"], "iid": item_id, "sid": active_sponsor_id}).fetchone()
         if existing:
-            conn.execute(text("UPDATE CART_ITEMS SET Quantity=Quantity+1 WHERE Driver_ID=:uid AND Item_ID=:iid"),
-                         {"uid": session["user_id"], "iid": item_id})
+            conn.execute(text("UPDATE CART_ITEMS SET Quantity=Quantity+1 WHERE Driver_ID=:uid AND Item_ID=:iid AND Sponsor_ID=:sid"),
+                         {"uid": session["user_id"], "iid": item_id, "sid": active_sponsor_id})
         else:
-            conn.execute(text("INSERT INTO CART_ITEMS (Driver_ID, Item_ID, Quantity) VALUES (:uid, :iid, 1)"),
-                         {"uid": session["user_id"], "iid": item_id})
+            conn.execute(text("INSERT INTO CART_ITEMS (Driver_ID, Item_ID, Quantity, Sponsor_ID) VALUES (:uid, :iid, 1, :sid)"),
+                         {"uid": session["user_id"], "iid": item_id, "sid": active_sponsor_id})
     return redirect(url_for("main.storefront"))
 
 
@@ -1019,13 +1014,14 @@ def cart_update(item_id):
     r = require_role("Driver")
     if r: return r
     quantity = int(request.form.get("quantity", 1))
+    active_sponsor_id = session.get("active_sponsor_id")
     with engine.begin() as conn:
         if quantity <= 0:
-            conn.execute(text("DELETE FROM CART_ITEMS WHERE Driver_ID=:uid AND Item_ID=:iid"),
-                         {"uid": session["user_id"], "iid": item_id})
+            conn.execute(text("DELETE FROM CART_ITEMS WHERE Driver_ID=:uid AND Item_ID=:iid AND Sponsor_ID=:sid"),
+                         {"uid": session["user_id"], "iid": item_id, "sid": active_sponsor_id})
         else:
-            conn.execute(text("UPDATE CART_ITEMS SET Quantity=:qty WHERE Driver_ID=:uid AND Item_ID=:iid"),
-                         {"qty": quantity, "uid": session["user_id"], "iid": item_id})
+            conn.execute(text("UPDATE CART_ITEMS SET Quantity=:qty WHERE Driver_ID=:uid AND Item_ID=:iid AND Sponsor_ID=:sid"),
+                         {"qty": quantity, "uid": session["user_id"], "iid": item_id, "sid": active_sponsor_id})
     return redirect(url_for("main.cart_page"))
 
 
@@ -1034,9 +1030,10 @@ def cart_update(item_id):
 def cart_remove(item_id):
     r = require_role("Driver")
     if r: return r
+    active_sponsor_id = session.get("active_sponsor_id")
     with engine.begin() as conn:
-        conn.execute(text("DELETE FROM CART_ITEMS WHERE Driver_ID=:uid AND Item_ID=:iid"),
-                     {"uid": session["user_id"], "iid": item_id})
+        conn.execute(text("DELETE FROM CART_ITEMS WHERE Driver_ID=:uid AND Item_ID=:iid AND Sponsor_ID=:sid"),
+                     {"uid": session["user_id"], "iid": item_id, "sid": active_sponsor_id})
     return redirect(url_for("main.cart_page"))
 
 
@@ -1052,11 +1049,11 @@ def cart_checkout():
             cart_items = conn.execute(text("""
                 SELECT ci.Item_ID, i.Item_Name, i.Prod_SKU, i.Prod_Description, i.Prod_Quantity,
                        ROUND(i.Prod_UnitPrice / s.Sponsor_PointConversion) AS point_cost,
-                    ci.Quantity, d.Sponsor_ID
+                    ci.Quantity, ds.Sponsor_ID
                 FROM CART_ITEMS ci
                 JOIN INVENTORY i ON ci.Item_ID = i.Item_ID
                 JOIN SPONSORS s ON i.Sponsor_ID = s.Sponsor_ID
-                JOIN DRIVERS d ON d.User_ID = ci.Driver_ID
+                JOIN DRIVER_SPONSORS ds ON ds.Driver_ID = ci.Driver_ID AND ds.Sponsor_ID = s.Sponsor_ID
                 WHERE ci.Driver_ID = :uid
             """), {"uid": uid}).fetchall()
 
@@ -1074,15 +1071,15 @@ def cart_checkout():
 
             # Check driver has enough points
             driver = conn.execute(text(
-                "SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"
-            ), {"uid": uid}).fetchone()
+                "SELECT Driver_Points FROM DRIVER_SPONSORS WHERE Driver_ID = :uid AND Sponsor_ID = :sid"
+            ), {"uid": uid, "sid": sponsor_id}).fetchone()
 
             if not driver:
                 flash("Driver not found.", "error")
                 return render_template("cart.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), 
                                        error="Driver not found.", cart_items=cart_items, total_cost=total_cost)
 
-            if driver.User_Points < total_cost:
+            if driver.Driver_Points < total_cost:
                 flash("You do not have enough points to complete this purchase.", "error")
                 return render_template("cart.html", nav_pages=NAV_PAGES, logged_in=is_logged_in(), 
                                    error="You do not have enough points to complete this purchase.", cart_items=cart_items, total_cost=total_cost)
@@ -1118,19 +1115,19 @@ def cart_checkout():
 
             # Deduct points from driver
             conn.execute(text("""
-                UPDATE DRIVERS SET User_Points = User_Points - :total WHERE User_ID = :uid
-            """), {"total": total_cost, "uid": uid})
+                UPDATE DRIVER_SPONSORS SET Driver_Points = Driver_Points - :total WHERE Driver_ID = :uid AND Sponsor_ID = :sid
+            """), {"total": total_cost, "uid": uid, "sid": sponsor_id})
 
             # Log the point transaction
             conn.execute(text("""
-                INSERT INTO POINT_TRANSACTIONS (Driver_ID, Actor_User_ID, Points_Changed, Reason, Transaction_Time)
-                VALUES (:uid, :sid, :pts, 'Order placed', :time)
-            """), {"uid": uid, "sid": sponsor_id, "pts": -total_cost, "time": datetime.now()})
+                INSERT INTO POINT_TRANSACTIONS (Driver_ID, Sponsor_ID, Actor_User_ID, Points_Changed, Reason, Transaction_Time)
+                VALUES (:uid, :sid, :uuid, :pts, 'Order placed', :time)
+            """), {"uid": uid, "sid": sponsor_id, "uuid": session["user_id"], "pts": -total_cost, "time": datetime.now()})
 
             # Clear the cart
             conn.execute(text(
-                "DELETE FROM CART_ITEMS WHERE Driver_ID = :uid"
-            ), {"uid": uid})
+                "DELETE FROM CART_ITEMS WHERE Driver_ID = :uid AND Sponsor_ID = :sid"
+            ), {"uid": uid, "sid": sponsor_id})
 
         flash("Your order has been placed successfully!", "success")
         return redirect(url_for("main.driver_home"))
@@ -1200,31 +1197,50 @@ def applications_list():
     end_date = request.args.get("end_date")
     sponsor_filter = request.args.get("sponsor_id")
 
-    filters = []
+    appFilters = []
+    multiFilters = []
     params = {}
 
     with engine.connect() as conn:
 
         if start_date:
-            filters.append("App_Time >= :start_date")
+            appFilters.append("App_Time >= :start_date")
+            multiFilters.append("Application_Time >= :start_date")
             params["start_date"] = start_date
 
         if end_date:
-            filters.append("App_Time <= :end_date")
+            appFilters.append("App_Time <= :end_date")
+            multiFilters.append("Application_Time <= :end_date")
             params["end_date"] = end_date
 
         if session["user_type"] == "Admin" and sponsor_filter:
-            filters.append("App_Sponsor_ID = :sponsor_id")
+            appFilters.append("App_Sponsor_ID = :sponsor_id")
+            multiFilters.append("Sponsor_ID = :sponsor_id")
             params["sponsor_id"] = sponsor_filter
 
-        filter_statement = " AND ".join(filters) if filters else "1=1"
+        app_filter_statement = " AND ".join(appFilters) if appFilters else "1=1"
+        multi_filter_statement = " AND ".join(multiFilters) if multiFilters else "1=1"
                 
         if session["user_type"] == "Sponsor":
-            apps = conn.execute(text(f""" SELECT Application_ID, App_Status, App_FName, App_LNAME FROM APPLICATIONS
-                                     WHERE App_Sponsor_ID = :sid AND {filter_statement} ORDER BY App_Time"""),
+            apps = conn.execute(text(f""" SELECT a.Application_ID, a.App_Status, 'new_app' AS app_type, a.App_FName, a.App_LNAME, s.Sponsor_Name, a.App_Time, a.App_Status FROM APPLICATIONS a
+                                     FROM APPLICATIONS a
+                                     JOIN SPONSORS s ON a.App_Sponsor_ID = s.Sponsor_ID
+                                     WHERE a.App_Sponsor_ID = :sid AND {app_filter_statement} ORDER BY a.App_Time
+                                     UNION ALL 
+                                     SELECT dsa.Driver_Sponsor_App_ID, dsa.Application_Status, 'existing_app' AS app_type, u.User_FName, u.User_LNAME, s.Sponsor_Name, dsa.Application_Time, dsa.Application_Status FROM DRIVER_SPONSOR_APPLICATIONS dsa
+                                     JOIN USERS u ON dsa.Driver_ID = u.User_ID
+                                     JOIN SPONSORS s ON dsa.Sponsor_ID = s.Sponsor_ID WHERE dsa.Sponsor_ID = :sid AND {multi_filter_statement} """),
                                 params | {"sid": session["sponsor_id"]}).fetchall()
         else:
-            apps = conn.execute(text(f""" SELECT Application_ID, App_Status, App_FName, App_LNAME FROM APPLICATIONS WHERE {filter_statement} ORDER BY App_Time"""), params).fetchall()
+            apps = conn.execute(text(f""" SELECT a.Application_ID, a.App_Status, 'new_app' AS app_type, a.App_FName, a.App_LNAME, s.Sponsor_Name, a.App_Time, a.App_Status FROM APPLICATIONS a
+                                     FROM APPLICATIONS a
+                                     JOIN SPONSORS s ON a.App_Sponsor_ID = s.Sponsor_ID
+                                     WHERE {app_filter_statement} ORDER BY a.App_Time
+                                     UNION ALL 
+                                     SELECT dsa.Driver_Sponsor_App_ID, dsa.Application_Status, 'existing_app' AS app_type, u.User_FName, u.User_LNAME, s.Sponsor_Name, dsa.Application_Time, dsa.Application_Status FROM DRIVER_SPONSOR_APPLICATIONS dsa
+                                     JOIN USERS u ON dsa.Driver_ID = u.User_ID
+                                     JOIN SPONSORS s ON dsa.Sponsor_ID = s.Sponsor_ID WHERE {multi_filter_statement} """),
+                                params ).fetchall()
     return render_template("applications_list.html", apps=apps, nav_pages = NAV_PAGES, logged_in=is_logged_in())
 
 @main_bp.get("/applications/<int:app_id>")
@@ -1249,8 +1265,8 @@ def application_details(app_id):
         "application_detail.html",
         app=app, nav_pages=NAV_PAGES, logged_in=is_logged_in())
 
-@main_bp.post("/applications/<int:app_id>/evaluate")
-def evaluate_applications(app_id):
+@main_bp.post("/applications/<string:app_type>/<int:app_id>/evaluate")
+def evaluate_applications(app_type, app_id):
     r = require_role("Sponsor")
     if r:
         r2 = require_role("Admin")
@@ -1260,23 +1276,42 @@ def evaluate_applications(app_id):
     reason = request.form.get("reason")
 
     with engine.begin() as conn:
-        app = conn.execute(text(""" SELECT App_Sponsor_ID FROM APPLICATIONS WHERE Application_ID = :aid"""), 
-                           {"aid": app_id}).fetchone()
-        if not app:
-            return "Application not found", 404
-        if session["user_type"] == "Sponsor" and int(app.App_Sponsor_ID) != int(session["sponsor_id"]):
-            return "Forbidden", 403
+        if app_type == "new_app":
+            app = conn.execute(text(""" SELECT App_Sponsor_ID FROM APPLICATIONS WHERE Application_ID = :aid"""), 
+                            {"aid": app_id}).fetchone()
+            if not app:
+                return "Application not found", 404
+            if session["user_type"] == "Sponsor" and int(app.App_Sponsor_ID) != int(session["sponsor_id"]):
+                return "Forbidden", 403
         
-        if decision == "Denied" and not reason:
-            return render_template(
-                "application_detail.html",
-                app=app, nav_pages=NAV_PAGES, logged_in=is_logged_in(),
-                error="Reason for denial is required when denying an application."
-            )
+            if decision == "Denied" and not reason:
+                return render_template(
+                    "application_detail.html",
+                    app=app, app_type="new_app", nav_pages=NAV_PAGES, logged_in=is_logged_in(),
+                    error="Reason for denial is required when denying an application."
+                )
 
-        conn.execute(text("""UPDATE APPLICATIONS SET App_Status = :status, Denial_Reason = :reason WHERE Application_ID = :aid"""), {"status": decision, "reason": reason if decision == "Denied" else None, "aid": app_id})
-        if decision == "Approved":
-            conn.execute(text("""DELETE FROM APPLICATIONS WHERE Application_ID = :aid"""), {"aid": app_id})
+            conn.execute(text("""UPDATE APPLICATIONS SET App_Status = :status, Denial_Reason = :reason WHERE Application_ID = :aid"""), {"status": decision, "reason": reason if decision == "Denied" else None, "aid": app_id})
+            if decision == "Approved":
+                conn.execute(text("""DELETE FROM APPLICATIONS WHERE Application_ID = :aid"""), {"aid": app_id})
+        if app_type == "existing_app":
+            app = conn.execute(text(""" SELECT dsa.Driver_Sponsor_App_ID, dsa.Driver_ID, dsa.Sponsor_ID, dsa.Application_Status, dsa.Application_Time, dsa.Denial_Reason, u.User_FName, u.User_LName 
+                                    FROM DRIVER_SPONSOR_APPLICATIONS dsa JOIN USERS u ON dsa.Driver_ID = u.User_ID WHERE Driver_Sponsor_App_ID = :aid"""), {"aid": app_id}).fetchone()
+            if not app:
+                return "Application not found", 404
+            if session["user_type"] == "Sponsor" and int(app.Sponsor_ID) != int(session["sponsor_id"]):
+                return "Forbidden", 403
+            if decision == "Denied" and not reason:
+                return render_template(
+                    "application_detail.html",
+                    app=app, app_type="existing_app", nav_pages=NAV_PAGES, logged_in=is_logged_in(),
+                    error="Reason for denial is required when denying an application."
+                ), 400
+            if app.Application_Status != "Pending":
+                return "This application has already been evaluated.", 400
+            conn.execute(text("""UPDATE DRIVER_SPONSOR_APPLICATIONS SET Application_Status = :status, Denial_Reason = :reason WHERE Driver_Sponsor_App_ID = :aid"""), {"status": decision, "reason": reason if decision == "Denied" else None, "aid": app_id})
+            if decision == "Approved":
+                conn.execute(text("""DELETE FROM DRIVER_SPONSOR_APPLICATIONS WHERE Driver_Sponsor_App_ID = :aid"""), {"aid": app_id})
     return redirect(url_for("main.applications_list"))
 
 
@@ -1290,15 +1325,32 @@ def driver_multi_applications():
     with engine.connect() as conn:
         if session["user_type"] == "Sponsor":
             apps = conn.execute(text(""" SELECT ds.Driver_Sponsor_App_ID, ds.Driver_ID, ds.Sponsor_ID, s.Sponsor_Name, ds.Application_Status, ds.Application_Time
-                                    , u.User_FName, u.User_LName FROM DRIVER_SPONSOR_APPS ds
+                                    , u.User_FName, u.User_LName FROM DRIVER_SPONSOR_APPLICATIONS ds
                                         JOIN SPONSORS s ON ds.Sponsor_ID = s.Sponsor_ID
                                         JOIN USERS u ON ds.Driver_ID = u.User_ID WHERE ds.Sponsor_ID = :sid"""), {"sid": session["sponsor_id"]}).fetchall()
         else:
             apps = conn.execute(text(""" SELECT ds.Driver_Sponsor_App_ID, ds.Driver_ID, ds.Sponsor_ID, s.Sponsor_Name, ds.Application_Status, ds.Application_Time
-                                    , u.User_FName, u.User_LName FROM DRIVER_SPONSOR_APPS ds
+                                    , u.User_FName, u.User_LName FROM DRIVER_SPONSOR_APPLICATIONS ds
                                         JOIN SPONSORS s ON ds.Sponsor_ID = s.Sponsor_ID
                                         JOIN USERS u ON ds.Driver_ID = u.User_ID""")).fetchall()
     return render_template("driver_multi_applications.html", apps=apps, nav_pages=NAV_PAGES, logged_in=is_logged_in())
+
+
+@main_bp.get("/driver/multi-applications/apply")
+def apply_multi_application_page():
+    r = require_role("Driver")
+    if r:
+        return r
+    with engine.connect() as conn:
+        sponsors = conn.execute(text("""
+            SELECT s.Sponsor_ID, s.Sponsor_Name FROM SPONSORS s WHERE s.Sponsor_ID NOT IN (
+                SELECT Sponsor_ID FROM DRIVER_SPONSOR_APPLICATIONS WHERE Driver_ID = :did AND Application_Status = 'Pending') AND s.Sponsor_ID NOT IN (
+                SELECT Sponsor_ID FROM DRIVER_SPONSORS WHERE Driver_ID = :did AND Is_Active = 1) ORDER BY s.Sponsor_Name
+        """), {"did": session["user_id"]}).fetchall()
+        existing_applications = conn.execute(text("""
+            SELECT dsa.Sponsor_ID, s.Sponsor_Name FROM DRIVER_SPONSOR_APPLICATIONS dsa JOIN SPONSORS s ON dsa.Sponsor_ID = s.Sponsor_ID WHERE dsa.Driver_ID = :did AND dsa.Application_Status = 'Pending'
+        """), {"did": session["user_id"]}).fetchall()
+    return render_template("driver_multi_applications.html", sponsors=sponsors, existing_applications=existing_applications, nav_pages=NAV_PAGES, logged_in=is_logged_in())
 
 @main_bp.post("/driver/multi-applications/apply")
 def apply_multi_application():
@@ -1311,63 +1363,30 @@ def apply_multi_application():
     
     with engine.begin() as conn:
         existing_app = conn.execute(text("""
-            SELECT Driver_Sponsor_App_ID FROM DRIVER_SPONSOR_APPS 
+            SELECT Driver_Sponsor_App_ID FROM DRIVER_SPONSOR_APPLICATIONS 
             WHERE Driver_ID = :did AND Sponsor_ID = :sid
         """), {"did": session["user_id"], "sid": sponsor_id}).fetchone()
         if existing_app:
             flash("You have already applied to this sponsor.", "error")
             return redirect(url_for("main.driver_multi_applications"))
         existing_user = conn.execute(text("""
-            SELECT Driver_ID FROM SPONSOR_DRIVERS WHERE Driver_ID = :did AND Sponsor_ID = :sid
+            SELECT Driver_ID FROM DRIVER_SPONSORS WHERE Driver_ID = :did AND Sponsor_ID = :sid
         """), {"did": session["user_id"], "sid": sponsor_id}).fetchone()
         if existing_user:
             flash("You are already a driver for this sponsor.", "error")
             return redirect(url_for("main.driver_multi_applications"))
         
         conn.execute(text("""
-            INSERT INTO DRIVER_SPONSOR_APPS (Driver_ID, Sponsor_ID, Application_Status, Application_Time)
+            INSERT INTO DRIVER_SPONSOR_APPLICATIONS (Driver_ID, Sponsor_ID, Application_Status, Application_Time)
             VALUES (:did, :sid, 'Pending', :time)
         """), {"did": session["user_id"], "sid": sponsor_id, "time": datetime.now()})
     
     flash("Your application has been submitted.", "success")
     return redirect(url_for("main.driver_multi_applications"))
 
-@main_bp.post("/driver/multi-applications/<int:app_id>/evaluate")
-def evaluate_multi_application(app_id):
-    r = require_role("Sponsor")
-    if r:
-        r2 = require_role("Admin")
-        if r2:
-            return r2
-    decision = request.form.get("decision").strip()
-    reason = request.form.get("reason").strip()
 
-    if decision not in {"Approved", "Denied"}:
-        return "Invalid decision", 400
-    
 
-    with engine.begin() as conn:
-        app = conn.execute(text(""" SELECT Driver_Sponsor_App_ID, Driver_ID, Sponsor_ID, Application_Status, Application_Time FROM DRIVER_SPONSOR_APPLICATIONS WHERE Driver_Sponsor_App_ID = :aid"""), 
-                           {"aid": app_id}).fetchone()
-        if not app:
-            return "Application not found", 404
-        if session["user_type"] == "Sponsor" and int(app.Sponsor_ID) != int(session["sponsor_id"]):
-            return "Forbidden", 403
-        
-        if app.Application_Status != "Pending":
-            return "This application has already been evaluated.", 400
-        if decision == "Denied" and not reason:
-            return render_template(
-                "application_detail.html",
-                app=app, nav_pages=NAV_PAGES, logged_in=is_logged_in(),
-                error="Reason for denial is required when denying an application."
-            )
-        
-        
-        conn.execute(text("""UPDATE DRIVER_SPONSOR_APPLICATIONS SET Application_Status = :status, Reason = :reason, Review_Time = :time WHERE Driver_Sponsor_App_ID = :aid"""), {"status": decision, "reason": reason, "time": datetime.now(), "aid": app_id})
-        if decision == "Approved":
-            conn.execute(text("""DELETE FROM DRIVER_SPONSOR_APPS WHERE Driver_Sponsor_App_ID = :aid"""), {"aid": app_id})
-    return redirect(url_for("main.driver_multi_applications"))
+
 
 @main_bp.get("/admin/create")
 def admin_create_page():
@@ -1388,14 +1407,14 @@ def remove_driver():
     
     with engine.begin() as conn:
         driver = conn.execute(text("""
-            SELECT User_ID FROM DRIVERS WHERE USER_ID = :did AND Sponsor_ID = :sid
+            SELECT Driver_ID FROM DRIVER_SPONSORS WHERE Driver_ID = :did AND Sponsor_ID = :sid
         """), {"did": driver_id, "sid": session["sponsor_id"]}).fetchone()
         if not driver:
             return "Driver not found or not associated with your sponsor account", 404
         
         conn.execute(text("""
-            UPDATE DRIVERS SET Is_Active = FALSE WHERE User_ID = :did
-        """), {"did": driver_id})
+            UPDATE DRIVER_SPONSORS SET Is_Active = FALSE WHERE Driver_ID = :did AND Sponsor_ID = :sid
+        """), {"did": driver_id, "sid": session["sponsor_id"]})
     return redirect(url_for("main.sponsor_home"))
 
 @main_bp.post("/driver/switch-sponsor")
