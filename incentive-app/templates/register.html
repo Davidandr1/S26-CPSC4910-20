@@ -85,9 +85,8 @@
         <label class="form-label">Sponsor</label>
         <select class="form-input" name="sponsor">
           {% for s in sponsors %}
-            <option value="{{ s }}"
-              {% if (form.sponsor.data or '') == s %}selected{% endif %}>
-              {{ s }}
+            <option value="{{ s.Sponsor_ID }}" {% if (form.sponsor.data or '') == s.Sponsor_ID %}selected{% endif %}>
+              {{ s.Sponsor_Name }}
             </option>
           {% endfor %}
         </select>

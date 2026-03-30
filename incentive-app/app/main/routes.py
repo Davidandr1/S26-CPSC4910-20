@@ -810,9 +810,9 @@ def admin_sponsors():
         sponsors = conn.execute(text('''
             SELECT s.Sponsor_ID, s.Sponsor_Name, s.Sponsor_Email, s.Sponsor_Phone,
                    s.Sponsor_Address, s.Sponsor_PointConversion, s.Sponsor_MaxPoints,s.Sponsor_Creation,
-                   COALESCE(COUNT(d.User_ID),0) AS driver_count
+                   COALESCE(COUNT(d.Driver_ID),0) AS driver_count
             FROM SPONSORS s
-            LEFT JOIN DRIVERS d ON d.Sponsor_ID = s.Sponsor_ID
+            LEFT JOIN DRIVER_SPONSORS d ON d.Sponsor_ID = s.Sponsor_ID
             GROUP BY s.Sponsor_ID, s.Sponsor_Name, s.Sponsor_Email, s.Sponsor_Phone, s.Sponsor_Address, s.Sponsor_PointConversion, s.Sponsor_Creation
             ORDER BY s.Sponsor_Name
         ''')).fetchall()
@@ -1263,8 +1263,10 @@ def application_details(app_type, app_id):
     if not app:
         return "Application not found", 404
 
-    if session["user_type"] == "Sponsor" and int(app.App_Sponsor_ID) != int(session["sponsor_id"]):
-        return "Forbidden", 403
+    if session["user_type"] == "Sponsor":
+        app_sponsor_id = app.App_Sponsor_ID if app_type == "new_app" else app.Sponsor_ID
+        if int(app_sponsor_id) != int(session["sponsor_id"]):
+            return "Forbidden", 403
 
     return render_template(
         "application_detail.html",
@@ -1286,8 +1288,10 @@ def evaluate_applications(app_type, app_id):
                             {"aid": app_id}).fetchone()
             if not app:
                 return "Application not found", 404
-            if session["user_type"] == "Sponsor" and int(app.App_Sponsor_ID) != int(session["sponsor_id"]):
-                return "Forbidden", 403
+            if session["user_type"] == "Sponsor":
+                app_sponsor_id = app.App_Sponsor_ID if app_type == "new_app" else app.Sponsor_ID
+                if int(app_sponsor_id) != int(session["sponsor_id"]):
+                    return "Forbidden", 403
         
             if decision == "Denied" and not reason:
                 return render_template(

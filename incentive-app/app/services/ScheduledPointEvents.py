@@ -12,7 +12,7 @@ class ScheduledPointEventService:
     def create_scheduled_events(sponsor_id: int, driver_id: int, created_by: int, points: int, reason: str, 
                                 scheduled_time: datetime, event_id: int = None, event_name: str = None) -> int:
         with engine.begin() as conn:
-            driver = conn.execute(text("SELECT User_ID FROM DRIVERS WHERE User_ID = :did AND Sponsor_ID = :sid"), {"did": driver_id, "sid": sponsor_id}).fetchone()
+            driver = conn.execute(text("SELECT Driver_ID FROM DRIVER_SPONSORS WHERE Driver_ID = :did AND Sponsor_ID = :sid"), {"did": driver_id, "sid": sponsor_id}).fetchone()
             if not driver:
                 raise ValueError("Driver not found for this sponsor")
             
@@ -82,12 +82,12 @@ class ScheduledPointEventService:
                                        {"sid": event.Sponsor_ID}).fetchone()
                 sponsor_cap = sponsor.Sponsor_MaxPoints if sponsor else 3000000
 
-                driver = conn.execute(text("""SELECT User_ID, User_Points FROM DRIVERS WHERE User_ID = :uid AND Sponsor_ID = :sid AND Is_Active = TRUE"""), {"uid": event.Driver_ID, "sid": event.Sponsor_ID}).fetchone()
+                driver = conn.execute(text("""SELECT Driver_ID, Driver_Points FROM DRIVER_SPONSORS WHERE Driver_ID = :uid AND Sponsor_ID = :sid AND Is_Active = TRUE"""), {"uid": event.Driver_ID, "sid": event.Sponsor_ID}).fetchone()
                 if not driver:
                     conn.execute(text("""UPDATE SCHEDULED_POINT_EVENTS SET Scheduled_Status = 'Failed', Processed_Time = :pt, Reason = 'Driver not found or inactive' WHERE Scheduled_Event_ID = :seid"""), {"pt": datetime.now(), "seid": event.Scheduled_Event_ID})
                     continue
 
-                current_points = driver.User_Points
+                current_points = driver.Driver_Points
                 new_points = current_points + event.Points_Change
 
                 if new_points < 0:
@@ -102,7 +102,7 @@ class ScheduledPointEventService:
                     conn.execute(text("""UPDATE SCHEDULED_POINT_EVENTS SET Scheduled_Status = 'Processed', Processed_Time = :pt WHERE Scheduled_Event_ID = :seid"""),
                                  {"pt":datetime.now(), "seid": event.Scheduled_Event_ID})
 
-                conn.execute(text("""UPDATE DRIVERS SET User_Points = User_Points + :change WHERE User_ID = :uid"""), {"change": actual_change, "uid": event.Driver_ID})
+                conn.execute(text("""UPDATE DRIVER_SPONSORS SET Driver_Points = Driver_Points + :change WHERE Driver_ID = :uid"""), {"change": actual_change, "uid": event.Driver_ID})
                 conn.execute(text("""UPDATE SCHEDULED_POINT_EVENTS SET Scheduled_Status = 'Processed', Processed_Time = :pt WHERE Scheduled_Event_ID = :seid"""), {"pt": datetime.now(), "seid": event.Scheduled_Event_ID})
 
                 conn.execute(text(""" INSERT INTO POINT_TRANSACTIONS (Driver_ID, Actor_User_ID, Points_Changed, Reason, Transaction_Time) VALUES

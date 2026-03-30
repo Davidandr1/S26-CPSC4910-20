@@ -26,10 +26,10 @@
         <tbody>
           {% for d in drivers %}
             <tr>
-              <td><input type="checkbox" name="driver_id" value="{{ d.User_ID }}"></td>
+              <td><input type="checkbox" name="driver_id" value="{{ d.Driver_ID }}"></td>
               <td>{{ d.User_FName }} {{ d.User_LName }}</td>
               <td>{{ d.User_Email }}</td>
-              <td>{{ d.User_Points }}</td>
+              <td>{{ d.Driver_Points }}</td>
             </tr>
           {% endfor %}
         </tbody>

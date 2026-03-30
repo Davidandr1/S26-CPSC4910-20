@@ -30,7 +30,7 @@
                         <td>{{ driver.User_FName }} {{ driver.User_LName }}</td>
                         <td>{{ driver.User_Email }}</td>
                         <td>{{ driver.User_Phone_Num }}</td>
-                        <td>{{ driver.User_Points }}</td>
+                        <td>{{ driver.Driver_Points }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -54,7 +54,7 @@
     {% if drivers|length == 0 %}
         <p class="leaderboard-empty">No drivers to rank yet.</p>
     {% else %}
-        {% set sorted_drivers = drivers | sort(attribute='User_Points', reverse=True) %}
+        {% set sorted_drivers = drivers | sort(attribute='Driver_Points', reverse=True) %}
         <table class="leaderboard-table">
             <thead>
                 <tr>

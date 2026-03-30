@@ -246,7 +246,7 @@ def register_page():
             ORDER BY Sponsor_Name
         """)).fetchall()
 
-    form.sponsor_id.choices = [(r.Sponsor_ID, r.Sponsor_Name) for r in sponsors]
+    form.sponsor.choices = [(r.Sponsor_ID, r.Sponsor_Name) for r in sponsors]
 
     return render_template(
         "register.html",
