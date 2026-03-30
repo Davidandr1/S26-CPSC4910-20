@@ -23,8 +23,24 @@
 </div>
 
 <div class="card">
+    <h3>Current Sponsor</h3>
+    <p><strong>Sponsor Name:</strong> {{ active_sponsor.Sponsor_Name }}</p>
+    {% if sponsors %}
+    <form method="POST" action="{{ url_for('main.switch_sponsor') }}">
+        <label for="sponsor_id">Switch Sponsor:</label>
+        <select name="sponsor_id" id="sponsor_id">
+            {% for s in sponsors %}
+            <option value="{{ s.Sponsor_ID }}" {% if s.Sponsor_ID == active_sponsor_id %}selected{% endif %}>{{ s.Sponsor_Name }} ({{ s.Driver_Points }} points)</option>
+            {% endfor %}
+        </select>
+        <button class="btn btn--primary" type="submit">Switch</button>
+    </form>
+    {% endif %}
+</div>
+
+<div class="card">
     <h3>Points Summary</h3>
-    <p><strong>Total Points:</strong> {{ points }}</p>
+    <p><strong>Current Points for active Sponsor:</strong> {{ points }}</p>
     {% if transactions|length == 0 %}
         <p><em>No transactions found.</em></p>
     {% else %}
@@ -83,7 +99,7 @@
                             <span class="leaderboard-you-badge">You</span>
                         {% endif %}
                     </td>
-                    <td class="col-pts">{{ driver.User_Points }}</td>
+                    <td class="col-pts">{{ driver.Driver_Points }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

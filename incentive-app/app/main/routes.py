@@ -135,13 +135,31 @@ def driver_home():
         return r
 
     driver_id = session.get("user_id")
+    active_sponsor_id = session.get("active_sponsor_id")
+    active_sponsor_name = session.get("active_sponsor_name")
     with engine.connect() as conn:
-        transactions = conn.execute(text("""
-            SELECT Points_Changed, Reason, Transaction_Time FROM POINT_TRANSACTIONS WHERE Driver_ID = :uid
+        sponsors = conn.execute(text("""
+                                     SELECT ds.Sponsor_ID, s.Sponsor_Name, ds.Driver_Points
+                                     FROM DRIVER_SPONSORS ds
+                                     JOIN SPONSORS s ON s.Sponsor_ID = ds.Sponsor_ID
+                                     WHERE ds.Driver_ID = :uid AND ds.Is_Active = TRUE
+                                     ORDER BY s.Sponsor_Name
         """), {"uid": driver_id}).fetchall()
-        points = conn.execute(text("""SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"""), {"uid": driver_id}).fetchone().User_Points
 
-    return render_template("driverHome.html", page_title="Driver Home", nav_pages=NAV_PAGES, logged_in=is_logged_in(), transactions=transactions, points=points)
+        if not active_sponsor_id and sponsors:
+            active_sponsor_id = sponsors[0].Sponsor_ID
+            active_sponsor_name = sponsors[0].Sponsor_Name
+            session["active_sponsor_id"] = active_sponsor_id
+            session["active_sponsor_name"] = active_sponsor_name
+        
+        if active_sponsor_id:
+            active_sponsor = conn.execute(text("SELECT ds.Sponsor_ID, s.Sponsor_Name, ds.Driver_Points FROM DRIVER_SPONSORS ds JOIN SPONSORS s ON s.Sponsor_ID = ds.Sponsor_ID WHERE ds.Driver_ID = :uid AND ds.Sponsor_ID = :sid AND ds.Is_Active = TRUE"), {"uid": driver_id, "sid": active_sponsor_id}).fetchone()
+            if active_sponsor:
+                points = active_sponsor.Driver_Points if hasattr(active_sponsor, 'Driver_Points') else 0
+        transactions = conn.execute(text("""
+            SELECT Points_Changed, Reason, Transaction_Time FROM POINT_TRANSACTIONS WHERE Driver_ID = :uid AND Sponsor_ID = :sid ORDER BY Transaction_Time DESC
+        """), {"uid": driver_id, "sid": active_sponsor_id}).fetchall()
+    return render_template("driverHome.html", page_title="Driver Home", nav_pages=NAV_PAGES, logged_in=is_logged_in(), transactions=transactions, points=points, sponsors=sponsors, active_sponsor_id=active_sponsor_id, active_sponsor=active_sponsor)
 
 
 @main_bp.get("/driver/points")
@@ -151,8 +169,9 @@ def driver_points_api():
         return r
 
     driver_id = session.get("user_id")
+    active_sponsor_id = session.get("active_sponsor_id")
     with engine.connect() as conn:
-        row = conn.execute(text("SELECT User_Points FROM DRIVERS WHERE User_ID = :uid"), {"uid": driver_id}).fetchone()
+        row = conn.execute(text("SELECT User_Points FROM DRIVERS WHERE User_ID = :uid AND Sponsor_ID = :sid"), {"uid": driver_id, "sid": active_sponsor_id}).fetchone()
 
     points = row.User_Points if row else 0
     return jsonify({"points": points})
@@ -1260,6 +1279,96 @@ def evaluate_applications(app_id):
             conn.execute(text("""DELETE FROM APPLICATIONS WHERE Application_ID = :aid"""), {"aid": app_id})
     return redirect(url_for("main.applications_list"))
 
+
+@main_bp.get("/driver/multi-applications")
+def driver_multi_applications():
+    r = require_role("Sponsor")
+    if r:
+        r2 = require_role("Admin")
+        if r2:
+            return r2
+    with engine.connect() as conn:
+        if session["user_type"] == "Sponsor":
+            apps = conn.execute(text(""" SELECT ds.Driver_Sponsor_App_ID, ds.Driver_ID, ds.Sponsor_ID, s.Sponsor_Name, ds.Application_Status, ds.Application_Time
+                                    , u.User_FName, u.User_LName FROM DRIVER_SPONSOR_APPS ds
+                                        JOIN SPONSORS s ON ds.Sponsor_ID = s.Sponsor_ID
+                                        JOIN USERS u ON ds.Driver_ID = u.User_ID WHERE ds.Sponsor_ID = :sid"""), {"sid": session["sponsor_id"]}).fetchall()
+        else:
+            apps = conn.execute(text(""" SELECT ds.Driver_Sponsor_App_ID, ds.Driver_ID, ds.Sponsor_ID, s.Sponsor_Name, ds.Application_Status, ds.Application_Time
+                                    , u.User_FName, u.User_LName FROM DRIVER_SPONSOR_APPS ds
+                                        JOIN SPONSORS s ON ds.Sponsor_ID = s.Sponsor_ID
+                                        JOIN USERS u ON ds.Driver_ID = u.User_ID""")).fetchall()
+    return render_template("driver_multi_applications.html", apps=apps, nav_pages=NAV_PAGES, logged_in=is_logged_in())
+
+@main_bp.post("/driver/multi-applications/apply")
+def apply_multi_application():
+    r = require_role("Driver")
+    if r:
+        return r
+    sponsor_id = request.form.get("sponsor_id")
+    if not sponsor_id:
+        return "Sponsor ID is required", 400
+    
+    with engine.begin() as conn:
+        existing_app = conn.execute(text("""
+            SELECT Driver_Sponsor_App_ID FROM DRIVER_SPONSOR_APPS 
+            WHERE Driver_ID = :did AND Sponsor_ID = :sid
+        """), {"did": session["user_id"], "sid": sponsor_id}).fetchone()
+        if existing_app:
+            flash("You have already applied to this sponsor.", "error")
+            return redirect(url_for("main.driver_multi_applications"))
+        existing_user = conn.execute(text("""
+            SELECT Driver_ID FROM SPONSOR_DRIVERS WHERE Driver_ID = :did AND Sponsor_ID = :sid
+        """), {"did": session["user_id"], "sid": sponsor_id}).fetchone()
+        if existing_user:
+            flash("You are already a driver for this sponsor.", "error")
+            return redirect(url_for("main.driver_multi_applications"))
+        
+        conn.execute(text("""
+            INSERT INTO DRIVER_SPONSOR_APPS (Driver_ID, Sponsor_ID, Application_Status, Application_Time)
+            VALUES (:did, :sid, 'Pending', :time)
+        """), {"did": session["user_id"], "sid": sponsor_id, "time": datetime.now()})
+    
+    flash("Your application has been submitted.", "success")
+    return redirect(url_for("main.driver_multi_applications"))
+
+@main_bp.post("/driver/multi-applications/<int:app_id>/evaluate")
+def evaluate_multi_application(app_id):
+    r = require_role("Sponsor")
+    if r:
+        r2 = require_role("Admin")
+        if r2:
+            return r2
+    decision = request.form.get("decision").strip()
+    reason = request.form.get("reason").strip()
+
+    if decision not in {"Approved", "Denied"}:
+        return "Invalid decision", 400
+    
+
+    with engine.begin() as conn:
+        app = conn.execute(text(""" SELECT Driver_Sponsor_App_ID, Driver_ID, Sponsor_ID, Application_Status, Application_Time FROM DRIVER_SPONSOR_APPLICATIONS WHERE Driver_Sponsor_App_ID = :aid"""), 
+                           {"aid": app_id}).fetchone()
+        if not app:
+            return "Application not found", 404
+        if session["user_type"] == "Sponsor" and int(app.Sponsor_ID) != int(session["sponsor_id"]):
+            return "Forbidden", 403
+        
+        if app.Application_Status != "Pending":
+            return "This application has already been evaluated.", 400
+        if decision == "Denied" and not reason:
+            return render_template(
+                "application_detail.html",
+                app=app, nav_pages=NAV_PAGES, logged_in=is_logged_in(),
+                error="Reason for denial is required when denying an application."
+            )
+        
+        
+        conn.execute(text("""UPDATE DRIVER_SPONSOR_APPLICATIONS SET Application_Status = :status, Reason = :reason, Review_Time = :time WHERE Driver_Sponsor_App_ID = :aid"""), {"status": decision, "reason": reason, "time": datetime.now(), "aid": app_id})
+        if decision == "Approved":
+            conn.execute(text("""DELETE FROM DRIVER_SPONSOR_APPS WHERE Driver_Sponsor_App_ID = :aid"""), {"aid": app_id})
+    return redirect(url_for("main.driver_multi_applications"))
+
 @main_bp.get("/admin/create")
 def admin_create_page():
     return redirect(url_for("auth.admin_create_page"))
@@ -1288,3 +1397,25 @@ def remove_driver():
             UPDATE DRIVERS SET Is_Active = FALSE WHERE User_ID = :did
         """), {"did": driver_id})
     return redirect(url_for("main.sponsor_home"))
+
+@main_bp.post("/driver/switch-sponsor")
+def switch_sponsor():
+    r = require_role("Driver")
+    if r:
+        return r
+    new_sponsor_id = request.form.get("sponsor_id", type=int)
+    if not new_sponsor_id:
+        return "Sponsor ID is required", 400
+    
+    with engine.begin() as conn:
+        sponsor = conn.execute(text("""
+            SELECT ds.Sponsor_ID, s.Sponsor_Name FROM DRIVER_SPONSORS ds JOIN SPONSORS s ON ds.Sponsor_ID = s.Sponsor_ID WHERE ds.Driver_ID = :driver_id AND ds.Sponsor_ID = :sid AND ds.Is_Active = TRUE
+        """), {"driver_id": session["user_id"], "sid": new_sponsor_id}).fetchone()
+        if not sponsor:
+            return "Sponsor not found", 404
+        
+    session["active_sponsor_id"] = sponsor.Sponsor_ID
+    session["active_sponsor_name"] = sponsor.Sponsor_Name
+    
+    flash(f"Your sponsor has been switched successfully to {sponsor.Sponsor_Name}.", "success")
+    return redirect(url_for("main.driver_home"))

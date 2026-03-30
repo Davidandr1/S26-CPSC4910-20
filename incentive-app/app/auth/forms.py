@@ -1,5 +1,5 @@
 import re
-from wtforms import Form, StringField, PasswordField, validators
+from wtforms import Form, StringField, PasswordField, validators, SelectField
 from email_validator import validate_email, EmailNotValidError
 
 def is_valid_email(value: str) -> bool:
@@ -52,9 +52,7 @@ class RegisterForm(Form):
         validators.DataRequired(message="License number is required.")
     ])
 
-    sponsor = StringField("Sponsor", [
-        validators.DataRequired(message="Sponsor is required.")
-    ])
+    sponsor = SelectField("Sponsor",choices=[], coerce=int, validators=[validators.DataRequired(message="Sponsor is required.")])
 
     def validate(self):
         ok = super().validate()

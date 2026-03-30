@@ -29,8 +29,10 @@ BEGIN
 		INSERT INTO USERS(Username, Encrypted_Password, User_FName, User_LNAME, User_Email, User_Phone_Num, User_Type) VALUES
         (NEW.App_Username, NEW.Encrypted_Password, NEW.App_FName, NEW.App_LNAME, NEW.App_Email, NEW.App_Phone_Num, 'Driver');
         SET @new_uid = LAST_INSERT_ID();
-        INSERT INTO DRIVERS (User_ID, License_Num, User_Points, Sponsor_ID) VALUES
-        (@new_uid, NEW.License_Num, 0, NEW.App_Sponsor_ID);
+        INSERT INTO DRIVERS (User_ID, License_Num, Is_Active) VALUES
+        (@new_uid, NEW.License_Num, TRUE);
+		INSERT INTO DRIVER_SPONSORS (Driver_ID, Sponsor_ID, Is_Active, Driver_Points) VALUES
+		(@new_uid, NEW.App_Sponsor_ID, TRUE, 0);
 	END IF;
 END$$
 
@@ -52,3 +54,15 @@ END$$
 
 DELIMITER ;
 	
+DELIMITER $$
+
+CREATE TRIGGER Multi_Application_Approved
+AFTER UPDATE ON DRIVER_SPONSOR_APPLICATIONS FOR EACH ROW
+BEGIN
+	IF NEW.Application_Status = 'Approved' AND OLD.Application_Status <> 'Approved' THEN
+		INSERT INTO DRIVER_SPONSORS(Driver_ID, Sponsor_ID, Is_Active, Driver_Points) VALUES
+       (NEW.Driver_ID, NEW.App_Sponsor_ID, TRUE, 0);
+	END IF;
+END$$
+
+DELIMITER ;

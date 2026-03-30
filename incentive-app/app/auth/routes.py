@@ -103,6 +103,22 @@ def login_submit():
             if srow:
                 session["sponsor_id"] = srow.Sponsor_ID
                 session["sponsor_name"] = srow.Sponsor_Name
+        if row.User_Type == "Driver":
+            drow = conn.execute(text("""
+                SELECT ds.Sponsor_ID, s.Sponsor_Name
+                FROM DRIVER_SPONSORS ds
+                JOIN SPONSORS s ON ds.Sponsor_ID = s.Sponsor_ID
+                WHERE ds.Driver_ID = :uid AND ds.Is_Active = TRUE
+                ORDER BY ds.Created_At ASC
+            """), {"uid": row.User_ID}).fetchone()
+            if drow:
+                session["active_sponsor_id"] = drow.Sponsor_ID
+                session["active_sponsor_name"] = drow.Sponsor_Name
+            else:
+                session["active_sponsor_id"] = None
+                session["active_sponsor_name"] = None
+            session.pop("sponsor_id", None)
+            session.pop("sponsor_name", None)
     
     return redirect(url_for("main.home_redirect"))
 
@@ -225,18 +241,18 @@ def register_page():
 
     with engine.connect() as conn:
         sponsors = conn.execute(text("""
-            SELECT Sponsor_Name
+            SELECT Sponsor_ID, Sponsor_Name
             FROM SPONSORS
             ORDER BY Sponsor_Name
         """)).fetchall()
 
-    sponsor_names = [r.Sponsor_Name for r in sponsors]
+    form.sponsor_id.choices = [(r.Sponsor_ID, r.Sponsor_Name) for r in sponsors]
 
     return render_template(
         "register.html",
         form=form,
         error=None,
-        sponsors=sponsor_names,
+        sponsors=sponsors,
         nav_pages=NAV_PAGES,
         logged_in=is_logged_in()
     )
@@ -301,10 +317,10 @@ def register_submit():
     if not form.validate():
         # repopulate sponsor list on error
         with engine.connect() as conn:
-            sponsors = conn.execute(text("SELECT Sponsor_Name FROM SPONSORS ORDER BY Sponsor_Name")).fetchall()
-        sponsor_names = [r.Sponsor_Name for r in sponsors]
+            sponsors = conn.execute(text("SELECT Sponsor_ID, Sponsor_Name FROM SPONSORS ORDER BY Sponsor_Name")).fetchall()
+        form.sponsor.choices = [(r.Sponsor_ID, r.Sponsor_Name) for r in sponsors]
 
-        return render_template("register.html", form=form, error=None, sponsors=sponsor_names,
+        return render_template("register.html", form=form, error=None, sponsors=sponsors,
                                nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
 
     username = form.username.data.strip()
@@ -315,23 +331,23 @@ def register_submit():
     email = form.email.data.strip()
     phone = normalize_phone(form.phone.data)
     license_num = form.license_number.data.strip()
-    sponsor_name = form.sponsor.data.strip()
+    sponsor_id = form.sponsor.data
 
     try:
         with engine.begin() as conn:
             sponsor = conn.execute(
-                text("SELECT Sponsor_ID FROM SPONSORS WHERE Sponsor_Name = :n"),
-                {"n": sponsor_name}
+                text("SELECT Sponsor_ID, Sponsor_Name FROM SPONSORS WHERE Sponsor_ID = :id"),
+                {"id": sponsor_id}
             ).fetchone()
 
             if not sponsor:
                 with engine.connect() as c2:
-                    sponsors = c2.execute(text("SELECT Sponsor_Name FROM SPONSORS ORDER BY Sponsor_Name")).fetchall()
-                sponsor_names = [r.Sponsor_Name for r in sponsors]
+                    sponsors = c2.execute(text("SELECT Sponsor_ID, Sponsor_Name FROM SPONSORS ORDER BY Sponsor_Name")).fetchall()
+                form.sponsor.choices = [(r.Sponsor_ID, r.Sponsor_Name) for r in sponsors]
 
                 return render_template("register.html", form=form,
                                        error="Sponsor not found. Please choose one from the dropdown.",
-                                       sponsors=sponsor_names,
+                                       sponsors=sponsors,
                                        nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
 
             # Check for duplicates across existing USERS and pending/other APPLICATIONS
@@ -347,12 +363,12 @@ def register_submit():
 
             if existing_user or existing_app:
                 with engine.connect() as c2:
-                    sponsors = c2.execute(text("SELECT Sponsor_Name FROM SPONSORS ORDER BY Sponsor_Name")).fetchall()
-                sponsor_names = [r.Sponsor_Name for r in sponsors]
+                    sponsors = c2.execute(text("SELECT Sponsor_ID, Sponsor_Name FROM SPONSORS ORDER BY Sponsor_Name")).fetchall()
+                form.sponsor.choices = [(r.Sponsor_ID, r.Sponsor_Name) for r in sponsors]
 
                 return render_template("register.html", form=form,
                                        error="Username, email, phone, or license already exists.",
-                                       sponsors=sponsor_names,
+                                       sponsors=sponsors,
                                        nav_pages=NAV_PAGES, logged_in=is_logged_in()), 400
 
             # Insert into APPLICATIONS (applicants are reviewed before creating USERS/DRIVERS)
@@ -365,12 +381,12 @@ def register_submit():
 
     except Exception:
         with engine.connect() as c2:
-            sponsors = c2.execute(text("SELECT Sponsor_Name FROM SPONSORS ORDER BY Sponsor_Name")).fetchall()
-        sponsor_names = [r.Sponsor_Name for r in sponsors]
+            sponsors = c2.execute(text("SELECT Sponsor_ID, Sponsor_Name FROM SPONSORS ORDER BY Sponsor_Name")).fetchall()
+        form.sponsor.choices = [(r.Sponsor_ID, r.Sponsor_Name) for r in sponsors]
 
         return render_template("register.html", form=form,
                                error="Database error creating account.",
-                               sponsors=sponsor_names,
+                               sponsors=sponsors,
                                nav_pages=NAV_PAGES, logged_in=is_logged_in()), 500
 
     # Applicants are not automatically logged in; show confirmation page
