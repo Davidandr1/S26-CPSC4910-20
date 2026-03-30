@@ -6,6 +6,8 @@ from app.services.inventoryService import InventoryService
 from app.services.ScheduledPointEvents import ScheduledPointEventService
 from datetime import datetime, timedelta
 import os
+import io
+import csv
 main_bp = Blueprint("main", __name__)
 
 NAV_PAGES = [
@@ -797,6 +799,208 @@ def admin_home():
     if r:
         return r
     return render_template("adminHome.html", page_title="Admin Home", nav_pages=NAV_PAGES, logged_in=is_logged_in())
+
+
+@main_bp.route('/admin/invoices', methods=['GET', 'POST'])
+def admin_invoices():
+    r = require_role('Admin')
+    if r:
+        return r
+
+    sponsors = []
+    invoices = []
+    params = {}
+    start_date = request.values.get('start_date')
+    end_date = request.values.get('end_date')
+    sponsor_filter = request.values.get('sponsor_id', '')
+
+    with engine.connect() as conn:
+        sponsors = conn.execute(text("SELECT Sponsor_ID, Sponsor_Name FROM SPONSORS ORDER BY Sponsor_Name")).fetchall()
+
+        if request.method == 'POST':
+            # Determine list of sponsor ids to generate for
+            target_sponsors = []
+            if sponsor_filter and sponsor_filter.lower() != 'all':
+                try:
+                    target_sponsors = [int(sponsor_filter)]
+                except Exception:
+                    target_sponsors = []
+            else:
+                target_sponsors = [s.Sponsor_ID for s in sponsors]
+
+            # Parse dates (inclusive)
+            start_dt = None
+            end_dt = None
+            if start_date:
+                try:
+                    start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                except Exception:
+                    start_dt = None
+            if end_date:
+                try:
+                    # include full day
+                    end_dt = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+                except Exception:
+                    end_dt = None
+
+            for sid in target_sponsors:
+                inv = {
+                    'Sponsor_ID': sid,
+                    'Sponsor_Name': None,
+                    'orders': [],
+                    'drivers': {},
+                    'totals': {'points': 0, 'amount': 0.0, 'fee': 0.0}
+                }
+
+                sponsor = conn.execute(text("SELECT Sponsor_ID, Sponsor_Name, Sponsor_PointConversion, Sponsor_Email, Sponsor_Phone, Sponsor_Address FROM SPONSORS WHERE Sponsor_ID = :sid"), {"sid": sid}).fetchone()
+                if not sponsor:
+                    continue
+                inv['Sponsor_Name'] = sponsor.Sponsor_Name
+                conversion = float(sponsor.Sponsor_PointConversion or 0)
+
+                # Fetch orders (include Pending and Completed; exclude Cancelled)
+                q = "SELECT o.Order_ID, o.Driver_ID, o.Total_Points, o.OrderTime, u.User_FName, u.User_LNAME FROM ORDERS o JOIN USERS u ON o.Driver_ID = u.User_ID WHERE o.Sponsor_ID = :sid AND o.Order_Status != 'Cancelled'"
+                qparams = {"sid": sid}
+                if start_dt:
+                    q += " AND o.OrderTime >= :start"
+                    qparams['start'] = start_dt
+                if end_dt:
+                    q += " AND o.OrderTime < :end"
+                    qparams['end'] = end_dt
+                q += " ORDER BY o.OrderTime"
+
+                orders = conn.execute(text(q), qparams).fetchall()
+                for o in orders:
+                    pts = int(o.Total_Points or 0)
+                    amount = round(pts * conversion, 2)
+                    fee = round(amount * 0.01, 2)
+                    driver_name = f"{o.User_FName} {o.User_LNAME}" if hasattr(o, 'User_FName') else ''
+
+                    row = {
+                        'Order_ID': o.Order_ID,
+                        'OrderTime': o.OrderTime,
+                        'Driver_ID': o.Driver_ID,
+                        'Driver_Name': driver_name,
+                        'Points': pts,
+                        'Conversion': conversion,
+                        'Amount_USD': amount,
+                        'Fee_USD': fee
+                    }
+                    inv['orders'].append(row)
+
+                    # accumulate per-driver
+                    d = inv['drivers'].setdefault(o.Driver_ID, {'Driver_ID': o.Driver_ID, 'Driver_Name': driver_name, 'Points': 0, 'Amount_USD': 0.0, 'Fee_USD': 0.0})
+                    d['Points'] += pts
+                    d['Amount_USD'] = round(d['Amount_USD'] + amount, 2)
+                    d['Fee_USD'] = round(d['Fee_USD'] + fee, 2)
+
+                    inv['totals']['points'] += pts
+                    inv['totals']['amount'] = round(inv['totals']['amount'] + amount, 2)
+                    inv['totals']['fee'] = round(inv['totals']['fee'] + fee, 2)
+
+                invoices.append(inv)
+
+    return render_template('adminInvoices.html', nav_pages=NAV_PAGES, logged_in=is_logged_in(), sponsors=sponsors, invoices=invoices, selected_sponsor=sponsor_filter, start_date=start_date, end_date=end_date)
+
+
+@main_bp.get('/admin/invoices/download/<int:sponsor_id>')
+def admin_invoice_download(sponsor_id):
+    r = require_role('Admin')
+    if r:
+        return r
+
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    start_dt = None
+    end_dt = None
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+        except Exception:
+            start_dt = None
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+        except Exception:
+            end_dt = None
+
+    # Build invoice (same logic as generation)
+    with engine.connect() as conn:
+        sponsor = conn.execute(text("SELECT Sponsor_ID, Sponsor_Name, Sponsor_PointConversion, Sponsor_Email, Sponsor_Phone, Sponsor_Address FROM SPONSORS WHERE Sponsor_ID = :sid"), {"sid": sponsor_id}).fetchone()
+        if not sponsor:
+            return "Sponsor not found", 404
+        conversion = float(sponsor.Sponsor_PointConversion or 0)
+
+        q = "SELECT o.Order_ID, o.Driver_ID, o.Total_Points, o.OrderTime, u.User_FName, u.User_LNAME FROM ORDERS o JOIN USERS u ON o.Driver_ID = u.User_ID WHERE o.Sponsor_ID = :sid AND o.Order_Status != 'Cancelled'"
+        qparams = {"sid": sponsor_id}
+        if start_dt:
+            q += " AND o.OrderTime >= :start"
+            qparams['start'] = start_dt
+        if end_dt:
+            q += " AND o.OrderTime < :end"
+            qparams['end'] = end_dt
+        q += " ORDER BY o.OrderTime"
+
+        orders = conn.execute(text(q), qparams).fetchall()
+
+    # Prepare CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header
+    invoice_num = f"INV-{sponsor.Sponsor_ID}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    writer.writerow(['Invoice_Number', invoice_num])
+    writer.writerow(['Invoice_Date', datetime.now().isoformat()])
+    writer.writerow(['Sponsor_Name', sponsor.Sponsor_Name])
+    writer.writerow(['Sponsor_ID', sponsor.Sponsor_ID])
+    writer.writerow(['Start_Date', start_date or ''])
+    writer.writerow(['End_Date', end_date or ''])
+    writer.writerow([])
+
+    # Column headers
+    writer.writerow(['Order_ID', 'OrderTime', 'Driver_ID', 'Driver_Name', 'Points', 'Conversion', 'Amount_USD', 'Fee_USD'])
+
+    totals_points = 0
+    totals_amount = 0.0
+    totals_fee = 0.0
+
+    drivers = {}
+    for o in orders:
+        pts = int(o.Total_Points or 0)
+        amount = round(pts * conversion, 2)
+        fee = round(amount * 0.01, 2)
+        driver_name = f"{o.User_FName} {o.User_LNAME}" if hasattr(o, 'User_FName') else ''
+
+        writer.writerow([o.Order_ID, o.OrderTime.isoformat() if hasattr(o.OrderTime, 'isoformat') else str(o.OrderTime), o.Driver_ID, driver_name, pts, conversion, f"{amount:.2f}", f"{fee:.2f}"])
+
+        totals_points += pts
+        totals_amount = round(totals_amount + amount, 2)
+        totals_fee = round(totals_fee + fee, 2)
+
+        d = drivers.setdefault(o.Driver_ID, {'Driver_ID': o.Driver_ID, 'Driver_Name': driver_name, 'Points': 0, 'Amount_USD': 0.0, 'Fee_USD': 0.0})
+        d['Points'] += pts
+        d['Amount_USD'] = round(d['Amount_USD'] + amount, 2)
+        d['Fee_USD'] = round(d['Fee_USD'] + fee, 2)
+
+    # Blank line then driver summaries
+    writer.writerow([])
+    writer.writerow(['Driver_ID', 'Driver_Name', 'Total_Points', 'Total_Amount_USD', 'Total_Fee_USD'])
+    for did, d in drivers.items():
+        writer.writerow([d['Driver_ID'], d['Driver_Name'], d['Points'], f"{d['Amount_USD']:.2f}", f"{d['Fee_USD']:.2f}"])
+
+    # Totals
+    writer.writerow([])
+    writer.writerow(['Total_Points', totals_points])
+    writer.writerow(['Total_Amount_USD', f"{totals_amount:.2f}"])
+    writer.writerow(['Total_Fee_USD', f"{totals_fee:.2f}"])
+
+    output.seek(0)
+    csv_bytes = output.getvalue().encode('utf-8')
+
+    from flask import Response
+    resp = Response(csv_bytes, mimetype='text/csv')
+    resp.headers.set('Content-Disposition', 'attachment', filename=f"invoice_{sponsor.Sponsor_ID}_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv")
+    return resp
 
 
 @main_bp.get('/admin/sponsors')
