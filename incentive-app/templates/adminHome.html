@@ -2,6 +2,16 @@
 {% set title = "Admin Home" %}
 {% block content %}
 <h1>Admin Home</h1>
+
+{% if session.get("impersonate_driver_id") %}
+<div style="background:#ff9800; color:#000; padding:10px 16px; border-radius:6px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
+  <span>⚠️ Currently viewing store as Driver #{{ session.impersonate_driver_id }}</span>
+  <form method="POST" action="{{ url_for('main.admin_stop_viewing') }}">
+    <button class="btn btn-secondary" type="submit">Stop Viewing</button>
+  </form>
+</div>
+{% endif %}
+
 <div class="card">
   <p>Welcome, admin. Use the links below to manage data.</p>
   <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;">
@@ -9,5 +19,23 @@
     <a class="btn btn--primary" href="{{ url_for('main.admin_sponsors') }}">View Sponsors</a>
     <a class="btn btn--primary" href="{{ url_for('main.admin_invoices') }}">Invoices</a>
   </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h2 style="margin-bottom:8px;">View Store as Driver</h2>
+  <p style="margin-bottom:12px;">Enter a Driver ID to browse the store from their perspective.</p>
+  <form method="POST" action="{{ url_for('main.admin_view_as_driver') }}" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <input
+      type="number"
+      name="driver_id"
+      placeholder="Driver ID"
+      required
+      style="padding:8px;border:1px solid #ccc;border-radius:4px;width:140px;"
+    >
+    <button class="btn btn--primary" type="submit">Go to Store</button>
+  </form>
+  <p style="margin-top:8px;font-size:0.875rem;color:#666;">
+    You can also pick a driver from <a href="{{ url_for('main.admin_users') }}">View All Users</a>.
+  </p>
 </div>
 {% endblock %}
