@@ -1523,7 +1523,7 @@ def evaluate_applications(app_type, app_id):
                     app=app, app_type="existing_app", nav_pages=NAV_PAGES, logged_in=is_logged_in(),
                     error="Reason for denial is required when denying an application."
                 ), 400
-            if app.Application_Status != "Pending":
+            if app.App_Status != "Pending":
                 return "This application has already been evaluated.", 400
             conn.execute(text("""UPDATE DRIVER_SPONSOR_APPLICATIONS SET Application_Status = :status, Denial_Reason = :reason WHERE Driver_Sponsor_App_ID = :aid"""), {"status": decision, "reason": reason if decision == "Denied" else None, "aid": app_id})
             if decision == "Approved":
