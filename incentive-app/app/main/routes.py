@@ -1054,12 +1054,14 @@ def admin_users():
 
 @main_bp.get("/store")
 def storefront():
-    r = require_role("Driver")
-    if r:
-        return r
-
-    user = fetch_current_user()
-    uid = session["user_id"]
+    impersonate_id = session.get("impersonate_driver_id")
+    if impersonate_id and session.get("user_type") == "Admin":
+        uid = impersonate_id
+    else:
+        r = require_role("Driver")
+        if r:
+            return r
+        uid = session["user_id"]
 
     # Get query params safely
     search = request.args.get("search", "").strip()
@@ -1170,7 +1172,28 @@ def storefront():
         cart_count=cart_count
     )
 
+@main_bp.post("/admin/view-as-driver")
+def admin_view_as_driver():
+    r = require_role("Admin")
+    if r:
+        return r
+    
+    driver_id = request.form.get("driver_id")
+    if not driver_id:
+        flash("Driver ID required.", "error")
+        return redirect(url_for("main.admin_users"))
+    
+    # Store the impersonation target in session
+    session["impersonate_driver_id"] = int(driver_id)
+    return redirect(url_for("main.storefront"))
 
+@main_bp.post("/admin/stop-viewing")
+def admin_stop_viewing():
+    r = require_role("Admin")
+    if r:
+        return r
+    session.pop("impersonate_driver_id", None)
+    return redirect(url_for("main.admin_home"))
 
 @main_bp.get("/cart")
 def cart_page():
