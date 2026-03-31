@@ -1,0 +1,50 @@
+from sqlalchemy import text
+from app.db import engine
+#note: "actor_user_id" is the user id of the person who triggered the notification.
+#it can be null.
+class NotificationService:
+    @staticmethod
+    def create(user_id: int, notif_type: str, description: str, related_url: str = None, actor_user_id: int = None):
+        with engine.begin() as conn:
+            conn.execute(text("""
+                INSERT INTO NOTIFICATIONS
+                (Notification_Type, User_ID, Notification_Description, Related_URL, Actor_User_ID)
+                VALUES (:t, :uid, :d, :url, :actor)
+            """), {
+                "t": notif_type,
+                "uid": user_id,
+                "d": description,
+                "url": related_url,
+                "actor": actor_user_id
+            })
+
+    @staticmethod
+    def list_for_user(user_id: int, limit: int = 50):
+        with engine.connect() as conn:
+            return conn.execute(text("""
+                SELECT Notification_ID, Notification_Type, Notification_Description,
+                       Notification_Time, Is_Read, Related_URL
+                FROM NOTIFICATIONS
+                WHERE User_ID = :uid
+                ORDER BY Notification_Time DESC
+                LIMIT :lim
+            """), {"uid": user_id, "lim": limit}).fetchall()
+
+    @staticmethod
+    def unread_count(user_id: int) -> int:
+        with engine.connect() as conn:
+            row = conn.execute(text("""
+                SELECT COUNT(*) AS c
+                FROM NOTIFICATIONS
+                WHERE User_ID = :uid AND Is_Read = FALSE
+            """), {"uid": user_id}).fetchone()
+            return int(row.c if row else 0)
+
+    @staticmethod
+    def mark_read(notification_id: int, user_id: int):
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE NOTIFICATIONS
+                SET Is_Read = TRUE, Read_Time = NOW()
+                WHERE Notification_ID = :nid AND User_ID = :uid
+            """), {"nid": notification_id, "uid": user_id})
