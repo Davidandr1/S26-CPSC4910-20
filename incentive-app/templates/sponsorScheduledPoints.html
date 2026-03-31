@@ -35,7 +35,7 @@
 
             <td>
                 {% if e.status == 'Scheduled' %}
-                    <form method="post" action="{{ url_for('main.cancel_scheduled_event') }}" style="margin:0;">
+                    <form method="post" action="{{ url_for('main.sponsor_cancel_scheduled_event') }}" style="margin:0;">
                         <input type="hidden" name="scheduled_event_id" value="{{ e.Scheduled_Event_ID }}">
                         <button type="submit" class="btn btn-danger btn-sm" 
                         onclick="return confirm('Are you sure you want to cancel this scheduled event?')"

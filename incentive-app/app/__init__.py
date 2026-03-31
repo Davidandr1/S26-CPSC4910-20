@@ -17,7 +17,7 @@ def create_app() -> Flask:
 
     # Blueprints
     from app.auth.routes import auth_bp
-    from app.main.routes import main_bp
+    from app.main import main_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
 

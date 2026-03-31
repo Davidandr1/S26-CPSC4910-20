@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.db import engine
@@ -33,13 +34,16 @@ def require_role(role: str):
     return None
 
 def session_valid(user_id, session_version):
-    with engine.connect() as conn:
-        row = conn.execute(text("""SELECT Session_Version 
+    try:
+        with engine.connect() as conn:
+            row = conn.execute(text("""SELECT Session_Version 
                                 FROM USERS WHERE User_ID = :uid""")
                                 ,{"uid": user_id}).fetchone()
-        if not row:
-            return False
-        return row.Session_Version == session_version
+            if not row:
+                return False
+            return row.Session_Version == session_version
+    except SQLAlchemyError:
+        return False
 
 @auth_bp.get("/")
 def login_page():
@@ -55,20 +59,38 @@ def login_submit():
     username = form.username.data.strip()
     password = form.password.data
 
-    with engine.connect() as conn:
-        row = conn.execute(text("""
-            SELECT User_ID, Username, Encrypted_Password, User_Type, Session_Version
-            FROM USERS
-            WHERE Username = :u
-        """), {"u": username}).fetchone()
+    try:
+        with engine.connect() as conn:
+            row = conn.execute(text("""
+                SELECT User_ID, Username, Encrypted_Password, User_Type, Session_Version
+                FROM USERS
+                WHERE Username = :u
+            """), {"u": username}).fetchone()
+    except SQLAlchemyError:
+        return render_template(
+            "login.html",
+            form=form,
+            error="Service is temporarily unavailable. Please try again shortly.",
+            nav_pages=NAV_PAGES,
+            logged_in=is_logged_in(),
+        ), 503
 
     if not row:
         # If no user, check if there's a pending application with this username
-        with engine.connect() as conn:
-            app_row = conn.execute(text("""
-                SELECT Application_ID, App_Status, App_Time, Denial_Reason
-                FROM APPLICATIONS WHERE App_Username = :u"""), 
-                {"u": username}).fetchone()
+        try:
+            with engine.connect() as conn:
+                app_row = conn.execute(text("""
+                    SELECT Application_ID, App_Status, App_Time, Denial_Reason
+                    FROM APPLICATIONS WHERE App_Username = :u"""), 
+                    {"u": username}).fetchone()
+        except SQLAlchemyError:
+            return render_template(
+                "login.html",
+                form=form,
+                error="Service is temporarily unavailable. Please try again shortly.",
+                nav_pages=NAV_PAGES,
+                logged_in=is_logged_in(),
+            ), 503
 
         if app_row:
             submitted = app_row.App_Time
@@ -92,17 +114,21 @@ def login_submit():
     session["session_version"] = row.Session_Version
     session.permanent = True  # enables PERMANENT_SESSION_LIFETIME
 
-    with engine.connect() as conn:
-        if row.User_Type == "Sponsor":
-            srow = conn.execute(text("""
-                SELECT su.Sponsor_ID, s.Sponsor_Name
-                FROM SPONSOR_USER su
-                JOIN SPONSORS s ON su.Sponsor_ID = s.Sponsor_ID
-                WHERE su.User_ID = :uid
-            """), {"uid": row.User_ID}).fetchone()
-            if srow:
-                session["sponsor_id"] = srow.Sponsor_ID
-                session["sponsor_name"] = srow.Sponsor_Name
+    try:
+        with engine.connect() as conn:
+            if row.User_Type == "Sponsor":
+                srow = conn.execute(text("""
+                    SELECT su.Sponsor_ID, s.Sponsor_Name
+                    FROM SPONSOR_USER su
+                    JOIN SPONSORS s ON su.Sponsor_ID = s.Sponsor_ID
+                    WHERE su.User_ID = :uid
+                """), {"uid": row.User_ID}).fetchone()
+                if srow:
+                    session["sponsor_id"] = srow.Sponsor_ID
+                    session["sponsor_name"] = srow.Sponsor_Name
+    except SQLAlchemyError:
+        # Keep login functional even if sponsor profile fetch fails.
+        pass
     
     return redirect(url_for("main.home_redirect"))
 
