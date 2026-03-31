@@ -41,13 +41,13 @@
       {% endif %}
 
         <hr>
-        <form action="{{url_for('main.evaluate_applications', app_type=app.app_type, app_id=(app.Application_ID if app_type == 'new_app' else app.Driver_Sponsor_App_ID)) }}"
+        <form action="{{url_for('main.evaluate_applications', app_type=app_type, app_id=(app.Application_ID if app_type == 'new_app' else app.Driver_Sponsor_App_ID)) }}"
             method="post" style="display:inline;">
           <input type="hidden" name="decision" value="Approved">
           <button class="btn btn-success">Approve</button>
         </form>
 
-        <form action="{{url_for('main.evaluate_applications', app_type=app.app_type, app_id=(app.Application_ID if app_type == 'new_app' else app.Driver_Sponsor_App_ID)) }}"
+        <form action="{{url_for('main.evaluate_applications', app_type=app_type, app_id=(app.Application_ID if app_type == 'new_app' else app.Driver_Sponsor_App_ID)) }}"
             method="post" style="display:inline;">
           <input type="hidden" name="decision" value="Denied">
           <div class="mb-2">
@@ -59,7 +59,7 @@
           </div>
           <button class="btn btn-danger">Deny</button>
         </form>
-        <a href="{{url_for('main.applications_list', app_type=app.app_type) }}" class="btn btn-secondary ms-2">
+        <a href="{{url_for('main.applications_list', app_type=app_type) }}" class="btn btn-secondary ms-2">
             Back to Applications
         </a>
     </div>

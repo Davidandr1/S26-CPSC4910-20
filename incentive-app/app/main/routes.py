@@ -1465,7 +1465,7 @@ def application_details(app_type, app_id):
                                     WHERE Application_ID = :aid"""),
                                     {"aid": app_id}).fetchone()
         elif app_type == "existing_app":
-            app = conn.execute(text(""" SELECT dsa.Driver_Sponsor_App_ID, dsa.Driver_ID, dsa.Sponsor_ID, dsa.Application_Status, dsa.Application_Time, dsa.Denial_Reason, u.User_FName AS first_name, u.User_LName AS last_name 
+            app = conn.execute(text(""" SELECT dsa.Driver_Sponsor_App_ID, dsa.Driver_ID, dsa.Sponsor_ID, dsa.Application_Status AS App_Status, dsa.Application_Time, dsa.Denial_Reason, u.User_FName AS first_name, u.User_LName AS last_name 
                                     FROM DRIVER_SPONSOR_APPLICATIONS dsa JOIN USERS u ON dsa.Driver_ID = u.User_ID WHERE Driver_Sponsor_App_ID = :aid"""), {"aid": app_id}).fetchone()
     if not app:
         return "Application not found", 404
@@ -1511,7 +1511,7 @@ def evaluate_applications(app_type, app_id):
             if decision == "Approved":
                 conn.execute(text("""DELETE FROM APPLICATIONS WHERE Application_ID = :aid"""), {"aid": app_id})
         elif app_type == "existing_app":
-            app = conn.execute(text(""" SELECT dsa.Driver_Sponsor_App_ID, dsa.Driver_ID, dsa.Sponsor_ID, dsa.Application_Status, dsa.Application_Time, dsa.Denial_Reason, u.User_FName, u.User_LName 
+            app = conn.execute(text(""" SELECT dsa.Driver_Sponsor_App_ID, dsa.Driver_ID, dsa.Sponsor_ID, dsa.Application_Status AS App_Status, dsa.Application_Time, dsa.Denial_Reason, u.User_FName AS first_name, u.User_LName AS last_name
                                     FROM DRIVER_SPONSOR_APPLICATIONS dsa JOIN USERS u ON dsa.Driver_ID = u.User_ID WHERE Driver_Sponsor_App_ID = :aid"""), {"aid": app_id}).fetchone()
             if not app:
                 return "Application not found", 404
